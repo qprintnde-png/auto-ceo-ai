@@ -1,7 +1,11 @@
 import { Button } from "@/components/ui/button";
 import { Crown, Menu } from "lucide-react";
+import { Link } from "react-router-dom";
+import { useAuth } from "@/hooks/useAuth";
 
 const Header = () => {
+  const { user } = useAuth();
+  
   return (
     <header className="border-b border-border/40 bg-background/80 backdrop-blur-md sticky top-0 z-50">
       <div className="container mx-auto px-4">
@@ -29,12 +33,26 @@ const Header = () => {
           </nav>
 
           <div className="flex items-center gap-4">
-            <Button variant="ghost" className="hidden md:inline-flex">
-              Sign In
-            </Button>
-            <Button variant="default">
-              Get Started
-            </Button>
+            {user ? (
+              <Link to="/dashboard">
+                <Button variant="default" className="bg-primary-gradient hover:opacity-90">
+                  Dashboard
+                </Button>
+              </Link>
+            ) : (
+              <>
+                <Link to="/auth">
+                  <Button variant="ghost" className="hidden md:inline-flex">
+                    Sign In
+                  </Button>
+                </Link>
+                <Link to="/auth">
+                  <Button variant="default" className="bg-primary-gradient hover:opacity-90">
+                    Get Started
+                  </Button>
+                </Link>
+              </>
+            )}
             <Button variant="ghost" size="icon" className="md:hidden">
               <Menu className="h-5 w-5" />
             </Button>

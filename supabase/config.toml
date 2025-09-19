@@ -1,1 +1,4 @@
 project_id = "vchpruahywmdbhpociih"
+
+[functions.generate-business-plan]
+verify_jwt = true

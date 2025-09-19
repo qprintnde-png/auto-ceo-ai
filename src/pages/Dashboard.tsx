@@ -3,6 +3,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { LogOut, Settings, Plus, BarChart3, Users, Target } from 'lucide-react';
+import { Link } from 'react-router-dom';
 
 const Dashboard = () => {
   const { user, signOut } = useAuth();
@@ -55,10 +56,12 @@ const Dashboard = () => {
               <CardDescription className="mb-4">
                 Generate an AI-powered business plan for your startup idea
               </CardDescription>
-              <Button className="w-full bg-primary-gradient hover:opacity-90">
-                <Plus className="h-4 w-4 mr-2" />
-                New Business Plan
-              </Button>
+              <Link to="/business-plan">
+                <Button className="w-full bg-primary-gradient hover:opacity-90">
+                  <Plus className="h-4 w-4 mr-2" />
+                  New Business Plan
+                </Button>
+              </Link>
             </CardContent>
           </Card>
 

@@ -68,18 +68,20 @@ const Dashboard = () => {
           <Card className="shadow-soft bg-card-gradient border-0 hover:shadow-feature transition-all duration-300">
             <CardHeader className="pb-3">
               <div className="flex items-center justify-between">
-                <CardTitle className="text-lg">Financial Forecast</CardTitle>
+                <CardTitle className="text-lg">Task Management</CardTitle>
                 <BarChart3 className="h-5 w-5 text-primary" />
               </div>
             </CardHeader>
             <CardContent>
               <CardDescription className="mb-4">
-                Build financial projections and track your startup's metrics
+                Organize and track your project tasks and deliverables
               </CardDescription>
-              <Button className="w-full" variant="outline">
-                <Plus className="h-4 w-4 mr-2" />
-                Create Forecast
-              </Button>
+              <Link to="/tasks">
+                <Button className="w-full" variant="outline">
+                  <Plus className="h-4 w-4 mr-2" />
+                  Manage Tasks
+                </Button>
+              </Link>
             </CardContent>
           </Card>
 

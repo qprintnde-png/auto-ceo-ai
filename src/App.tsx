@@ -12,6 +12,7 @@ import BusinessPlan from "./pages/BusinessPlan";
 import Tasks from "./pages/Tasks";
 import Financial from "./pages/Financial";
 import Investors from "./pages/Investors";
+import Team from "./pages/Team";
 import Onboarding from "./pages/Onboarding";
 import NotFound from "./pages/NotFound";
 
@@ -55,6 +56,11 @@ const App = () => (
             <Route path="/investors" element={
               <ProtectedRoute>
                 <Investors />
+              </ProtectedRoute>
+            } />
+            <Route path="/team" element={
+              <ProtectedRoute>
+                <Team />
               </ProtectedRoute>
             } />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}

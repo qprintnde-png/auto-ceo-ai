@@ -131,18 +131,20 @@ const Dashboard = () => {
           <Card className="shadow-soft bg-card-gradient border-0 hover:shadow-feature transition-all duration-300">
             <CardHeader className="pb-3">
               <div className="flex items-center justify-between">
-                <CardTitle className="text-lg">Coming Soon</CardTitle>
-                <Users className="h-5 w-5 text-muted-foreground" />
+                <CardTitle className="text-lg">Team Management</CardTitle>
+                <Users className="h-5 w-5 text-primary" />
               </div>
             </CardHeader>
             <CardContent>
               <CardDescription className="mb-4">
-                Team management and marketplace features are coming soon
+                Manage your team members and find qualified candidates
               </CardDescription>
-              <Button className="w-full" variant="ghost" disabled>
-                <Plus className="h-4 w-4 mr-2" />
-                Team Management
-              </Button>
+              <Link to="/team">
+                <Button className="w-full" variant="outline">
+                  <Users className="h-4 w-4 mr-2" />
+                  Manage Team
+                </Button>
+              </Link>
             </CardContent>
           </Card>
         </div>

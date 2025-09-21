@@ -11,6 +11,7 @@ import Dashboard from "./pages/Dashboard";
 import BusinessPlan from "./pages/BusinessPlan";
 import Tasks from "./pages/Tasks";
 import Financial from "./pages/Financial";
+import Investors from "./pages/Investors";
 import Onboarding from "./pages/Onboarding";
 import NotFound from "./pages/NotFound";
 
@@ -49,6 +50,11 @@ const App = () => (
             <Route path="/financial" element={
               <ProtectedRoute>
                 <Financial />
+              </ProtectedRoute>
+            } />
+            <Route path="/investors" element={
+              <ProtectedRoute>
+                <Investors />
               </ProtectedRoute>
             } />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}

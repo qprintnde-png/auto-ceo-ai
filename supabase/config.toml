@@ -1,4 +1,10 @@
 project_id = "vchpruahywmdbhpociih"
 
 [functions.generate-business-plan]
-verify_jwt = true
+verify_jwt = false
+
+[functions.match-investors]
+verify_jwt = false
+
+[functions.generate-pitch-email]
+verify_jwt = false

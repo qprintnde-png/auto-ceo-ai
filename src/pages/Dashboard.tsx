@@ -2,7 +2,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { LogOut, Settings, Plus, BarChart3, Users, Target } from 'lucide-react';
+import { LogOut, Settings, Plus, BarChart3, Users, Target, TrendingUp } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
 const Dashboard = () => {
@@ -102,6 +102,47 @@ const Dashboard = () => {
                   Financial Planning
                 </Button>
               </Link>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Secondary Features */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+          <Card className="shadow-soft bg-card-gradient border-0 hover:shadow-feature transition-all duration-300">
+            <CardHeader className="pb-3">
+              <div className="flex items-center justify-between">
+                <CardTitle className="text-lg">Investor Matching</CardTitle>
+                <TrendingUp className="h-5 w-5 text-primary" />
+              </div>
+            </CardHeader>
+            <CardContent>
+              <CardDescription className="mb-4">
+                Find and connect with investors that align with your startup
+              </CardDescription>
+              <Link to="/investors">
+                <Button className="w-full" variant="outline">
+                  <Users className="h-4 w-4 mr-2" />
+                  Find Investors
+                </Button>
+              </Link>
+            </CardContent>
+          </Card>
+
+          <Card className="shadow-soft bg-card-gradient border-0 hover:shadow-feature transition-all duration-300">
+            <CardHeader className="pb-3">
+              <div className="flex items-center justify-between">
+                <CardTitle className="text-lg">Coming Soon</CardTitle>
+                <Users className="h-5 w-5 text-muted-foreground" />
+              </div>
+            </CardHeader>
+            <CardContent>
+              <CardDescription className="mb-4">
+                Team management and marketplace features are coming soon
+              </CardDescription>
+              <Button className="w-full" variant="ghost" disabled>
+                <Plus className="h-4 w-4 mr-2" />
+                Team Management
+              </Button>
             </CardContent>
           </Card>
         </div>

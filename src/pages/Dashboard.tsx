@@ -2,7 +2,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { LogOut, Settings, Plus, BarChart3, Users, Target, TrendingUp } from 'lucide-react';
+import { LogOut, Settings, Plus, BarChart3, Users, Target, TrendingUp, Building2 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
 const Dashboard = () => {
@@ -100,6 +100,29 @@ const Dashboard = () => {
                 <Button className="w-full" variant="outline">
                   <Plus className="h-4 w-4 mr-2" />
                   Financial Planning
+                </Button>
+              </Link>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Portfolio Management */}
+        <div className="mb-8">
+          <Card className="shadow-soft bg-card-gradient border-0 hover:shadow-feature transition-all duration-300">
+            <CardHeader className="pb-3">
+              <div className="flex items-center justify-between">
+                <CardTitle className="text-lg">Portfolio Management</CardTitle>
+                <Building2 className="h-5 w-5 text-primary" />
+              </div>
+            </CardHeader>
+            <CardContent>
+              <CardDescription className="mb-4">
+                Manage multiple companies, track portfolio performance, and analyze cross-company metrics
+              </CardDescription>
+              <Link to="/portfolio">
+                <Button className="w-full bg-primary-gradient hover:opacity-90">
+                  <Building2 className="h-4 w-4 mr-2" />
+                  View Portfolio
                 </Button>
               </Link>
             </CardContent>

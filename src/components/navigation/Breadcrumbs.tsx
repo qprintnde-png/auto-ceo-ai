@@ -10,6 +10,7 @@ const routeLabels: Record<string, string> = {
   team: "Team",
   portfolio: "Portfolio",
   onboarding: "Onboarding",
+  settings: "Settings",
 };
 
 export const Breadcrumbs = () => {

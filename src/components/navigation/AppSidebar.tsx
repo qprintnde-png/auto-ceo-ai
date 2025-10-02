@@ -89,9 +89,18 @@ export function AppSidebar() {
       <SidebarFooter>
         <SidebarMenu>
           <SidebarMenuItem>
-            <SidebarMenuButton tooltip="Settings">
-              <Settings className="h-4 w-4" />
-              <span>Settings</span>
+            <SidebarMenuButton asChild tooltip="Settings">
+              <NavLink
+                to="/settings"
+                className={({ isActive }) =>
+                  isActive
+                    ? "bg-primary/10 text-primary font-medium"
+                    : "hover:bg-muted/50"
+                }
+              >
+                <Settings className="h-4 w-4" />
+                <span>Settings</span>
+              </NavLink>
             </SidebarMenuButton>
           </SidebarMenuItem>
           <SidebarMenuItem>

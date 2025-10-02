@@ -15,6 +15,7 @@ import Investors from "./pages/Investors";
 import Team from "./pages/Team";
 import Portfolio from "./pages/Portfolio";
 import Onboarding from "./pages/Onboarding";
+import Settings from "./pages/Settings";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -67,6 +68,11 @@ const App = () => (
             <Route path="/portfolio" element={
               <ProtectedRoute>
                 <Portfolio />
+              </ProtectedRoute>
+            } />
+            <Route path="/settings" element={
+              <ProtectedRoute>
+                <Settings />
               </ProtectedRoute>
             } />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}

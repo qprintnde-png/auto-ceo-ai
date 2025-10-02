@@ -9,6 +9,7 @@ import {
   Briefcase,
   FolderKanban,
   Search,
+  Settings,
 } from "lucide-react";
 import {
   CommandDialog,
@@ -62,6 +63,12 @@ const navigationItems = [
     url: "/portfolio",
     icon: FolderKanban,
     keywords: ["companies", "ventures", "equity"],
+  },
+  {
+    title: "Settings",
+    url: "/settings",
+    icon: Settings,
+    keywords: ["preferences", "account", "profile"],
   },
 ];
 

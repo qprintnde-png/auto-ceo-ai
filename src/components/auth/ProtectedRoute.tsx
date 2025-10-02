@@ -1,6 +1,7 @@
 import { useAuth } from '@/hooks/useAuth';
 import { Navigate } from 'react-router-dom';
 import { Loader2 } from 'lucide-react';
+import { DashboardLayout } from '@/components/layouts/DashboardLayout';
 
 interface ProtectedRouteProps {
   children: React.ReactNode;
@@ -21,5 +22,5 @@ export const ProtectedRoute = ({ children }: ProtectedRouteProps) => {
     return <Navigate to="/auth" replace />;
   }
 
-  return <>{children}</>;
+  return <DashboardLayout>{children}</DashboardLayout>;
 };

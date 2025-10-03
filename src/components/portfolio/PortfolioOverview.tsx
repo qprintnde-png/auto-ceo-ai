@@ -177,22 +177,26 @@ export const PortfolioOverview = () => {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="space-y-4">
+          <div className="space-y-3">
             {companies.length === 0 ? (
-              <div className="text-center py-8">
-                <Building2 className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-                <p className="text-muted-foreground">No companies in your portfolio yet</p>
+              <div className="text-center py-12">
+                <Building2 className="h-16 w-16 text-muted-foreground mx-auto mb-4 opacity-50" />
+                <p className="text-muted-foreground text-lg mb-2">No companies in your portfolio yet</p>
+                <p className="text-sm text-muted-foreground">Add your first company to start tracking performance</p>
               </div>
             ) : (
               companies.map((company) => (
-                <div key={company.id} className="flex items-center justify-between p-4 rounded-lg bg-muted/20 hover:bg-muted/40 transition-colors">
+                <div 
+                  key={company.id} 
+                  className="flex items-center justify-between p-4 rounded-lg bg-muted/10 hover:bg-muted/20 border border-border/40 transition-all hover-scale cursor-pointer"
+                >
                   <div className="flex items-center space-x-4">
-                    <div className="p-2 rounded-lg bg-primary/10">
-                      <Building2 className="h-5 w-5 text-primary" />
+                    <div className="p-3 rounded-lg bg-primary-gradient shadow-elegant">
+                      <Building2 className="h-5 w-5 text-primary-foreground" />
                     </div>
                     <div>
-                      <h4 className="font-medium">{company.name}</h4>
-                      <div className="flex items-center space-x-2 text-sm text-muted-foreground">
+                      <h4 className="font-semibold">{company.name}</h4>
+                      <div className="flex items-center space-x-2 text-sm text-muted-foreground mt-1">
                         <span>{company.industry}</span>
                         {company.stage && (
                           <>
@@ -206,9 +210,10 @@ export const PortfolioOverview = () => {
                     </div>
                   </div>
                   <div className="text-right">
-                    <p className="font-medium">{formatCurrency(company.current_funding || 0)}</p>
-                    <p className="text-sm text-muted-foreground">
-                      {company.employee_count || 0} employees
+                    <p className="font-bold text-lg">{formatCurrency(company.current_funding || 0)}</p>
+                    <p className="text-sm text-muted-foreground flex items-center justify-end gap-1">
+                      <Users className="h-3 w-3" />
+                      {company.employee_count || 0} team members
                     </p>
                   </div>
                 </div>

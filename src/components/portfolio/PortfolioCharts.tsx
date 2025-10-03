@@ -1,5 +1,5 @@
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { AreaChart, Area, XAxis, YAxis, CartesianGrid, ResponsiveContainer, PieChart, Pie, Cell, BarChart, Bar, LineChart, Line } from 'recharts';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { AreaChart, Area, XAxis, YAxis, CartesianGrid, ResponsiveContainer, PieChart, Pie, Cell, BarChart, Bar, Tooltip, Legend } from 'recharts';
 
 interface Company {
   id: string;
@@ -60,17 +60,40 @@ export const PortfolioCharts = ({ companies }: PortfolioChartsProps) => {
 
   const COLORS = ['#8b5cf6', '#06b6d4', '#10b981', '#f59e0b', '#ef4444', '#6366f1'];
 
+  const CustomTooltip = ({ active, payload }: any) => {
+    if (active && payload && payload.length) {
+      return (
+        <div className="bg-card border rounded-lg p-3 shadow-elegant">
+          <p className="font-medium text-sm">{payload[0].payload.month || payload[0].name}</p>
+          {payload.map((entry: any, index: number) => (
+            <p key={index} className="text-xs text-muted-foreground">
+              {entry.name}: {typeof entry.value === 'number' ? `$${(entry.value / 1000).toFixed(0)}K` : entry.value}
+            </p>
+          ))}
+        </div>
+      );
+    }
+    return null;
+  };
+
   return (
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
       {/* Portfolio Value Growth */}
-      <Card className="shadow-soft bg-card-gradient border-0">
+      <Card className="shadow-soft bg-card-gradient border-0 hover-scale transition-all">
         <CardHeader>
           <CardTitle>Portfolio Value Growth</CardTitle>
+          <CardDescription>6-month performance trend</CardDescription>
         </CardHeader>
         <CardContent>
           <ResponsiveContainer width="100%" height={300}>
             <AreaChart data={portfolioGrowthData}>
-              <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--muted))" />
+              <defs>
+                <linearGradient id="colorValue" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="5%" stopColor="hsl(var(--primary))" stopOpacity={0.3}/>
+                  <stop offset="95%" stopColor="hsl(var(--primary))" stopOpacity={0}/>
+                </linearGradient>
+              </defs>
+              <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--muted))" opacity={0.5} />
               <XAxis 
                 dataKey="month" 
                 stroke="hsl(var(--muted-foreground))"
@@ -81,13 +104,13 @@ export const PortfolioCharts = ({ companies }: PortfolioChartsProps) => {
                 fontSize={12}
                 tickFormatter={(value) => `$${(value / 1000).toFixed(0)}K`}
               />
+              <Tooltip content={<CustomTooltip />} />
               <Area
                 type="monotone"
                 dataKey="value"
                 stroke="hsl(var(--primary))"
-                fill="hsl(var(--primary))"
-                fillOpacity={0.2}
-                strokeWidth={2}
+                fill="url(#colorValue)"
+                strokeWidth={3}
               />
             </AreaChart>
           </ResponsiveContainer>
@@ -95,9 +118,10 @@ export const PortfolioCharts = ({ companies }: PortfolioChartsProps) => {
       </Card>
 
       {/* Industry Distribution */}
-      <Card className="shadow-soft bg-card-gradient border-0">
+      <Card className="shadow-soft bg-card-gradient border-0 hover-scale transition-all">
         <CardHeader>
           <CardTitle>Industry Distribution</CardTitle>
+          <CardDescription>Companies by industry sector</CardDescription>
         </CardHeader>
         <CardContent>
           <ResponsiveContainer width="100%" height={300}>
@@ -115,20 +139,22 @@ export const PortfolioCharts = ({ companies }: PortfolioChartsProps) => {
                   <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                 ))}
               </Pie>
+              <Tooltip content={<CustomTooltip />} />
             </PieChart>
           </ResponsiveContainer>
         </CardContent>
       </Card>
 
       {/* Stage Distribution */}
-      <Card className="shadow-soft bg-card-gradient border-0">
+      <Card className="shadow-soft bg-card-gradient border-0 hover-scale transition-all">
         <CardHeader>
           <CardTitle>Company Stages</CardTitle>
+          <CardDescription>Distribution across funding stages</CardDescription>
         </CardHeader>
         <CardContent>
           <ResponsiveContainer width="100%" height={300}>
             <BarChart data={barData}>
-              <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--muted))" />
+              <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--muted))" opacity={0.5} />
               <XAxis 
                 dataKey="stage" 
                 stroke="hsl(var(--muted-foreground))"
@@ -138,21 +164,23 @@ export const PortfolioCharts = ({ companies }: PortfolioChartsProps) => {
                 stroke="hsl(var(--muted-foreground))"
                 fontSize={12}
               />
-              <Bar dataKey="count" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
+              <Tooltip content={<CustomTooltip />} />
+              <Bar dataKey="count" fill="hsl(var(--primary))" radius={[8, 8, 0, 0]} />
             </BarChart>
           </ResponsiveContainer>
         </CardContent>
       </Card>
 
       {/* Funding Progress */}
-      <Card className="shadow-soft bg-card-gradient border-0">
+      <Card className="shadow-soft bg-card-gradient border-0 hover-scale transition-all">
         <CardHeader>
           <CardTitle>Funding Progress</CardTitle>
+          <CardDescription>Current vs goal funding by company</CardDescription>
         </CardHeader>
         <CardContent>
           <ResponsiveContainer width="100%" height={300}>
             <BarChart data={fundingData}>
-              <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--muted))" />
+              <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--muted))" opacity={0.5} />
               <XAxis 
                 dataKey="name" 
                 stroke="hsl(var(--muted-foreground))"
@@ -163,8 +191,10 @@ export const PortfolioCharts = ({ companies }: PortfolioChartsProps) => {
                 fontSize={12}
                 tickFormatter={(value) => `$${(value / 1000).toFixed(0)}K`}
               />
-              <Bar dataKey="current" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
-              <Bar dataKey="goal" fill="hsl(var(--muted))" radius={[4, 4, 0, 0]} />
+              <Tooltip content={<CustomTooltip />} />
+              <Legend />
+              <Bar dataKey="current" name="Current" fill="hsl(var(--primary))" radius={[8, 8, 0, 0]} />
+              <Bar dataKey="goal" name="Goal" fill="hsl(var(--muted))" radius={[8, 8, 0, 0]} />
             </BarChart>
           </ResponsiveContainer>
         </CardContent>

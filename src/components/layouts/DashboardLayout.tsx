@@ -2,6 +2,7 @@ import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/navigation/AppSidebar";
 import { Breadcrumbs } from "@/components/navigation/Breadcrumbs";
 import { CommandMenu } from "@/components/navigation/CommandMenu";
+import { ThemeToggle } from "@/components/theme/ThemeToggle";
 
 interface DashboardLayoutProps {
   children: React.ReactNode;
@@ -19,7 +20,10 @@ export const DashboardLayout = ({ children }: DashboardLayoutProps) => {
                 <SidebarTrigger />
                 <Breadcrumbs />
               </div>
-              <CommandMenu />
+              <div className="flex items-center gap-2">
+                <CommandMenu />
+                <ThemeToggle />
+              </div>
             </div>
           </header>
           <main className="flex-1 overflow-auto">

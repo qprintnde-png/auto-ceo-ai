@@ -102,13 +102,13 @@ export const PortfolioOverview = () => {
   return (
     <div className="space-y-6">
       {/* Portfolio Metrics */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        <Card className="shadow-soft bg-card-gradient border-0">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        <Card className="shadow-soft bg-card-gradient border-0 hover-scale transition-all">
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-muted-foreground">Total Companies</p>
-                <p className="text-2xl font-bold">{metrics.totalCompanies}</p>
+                <p className="text-sm font-medium text-muted-foreground mb-1">Total Companies</p>
+                <p className="text-3xl font-bold">{metrics.totalCompanies}</p>
               </div>
               <div className="p-3 rounded-full bg-primary/10">
                 <Building2 className="h-6 w-6 text-primary" />
@@ -117,31 +117,31 @@ export const PortfolioOverview = () => {
           </CardContent>
         </Card>
 
-        <Card className="shadow-soft bg-card-gradient border-0">
+        <Card className="shadow-soft bg-card-gradient border-0 hover-scale transition-all">
           <CardContent className="p-6">
-            <div className="flex items-center justify-between">
+            <div className="flex items-center justify-between mb-3">
               <div>
-                <p className="text-sm font-medium text-muted-foreground">Portfolio Value</p>
-                <p className="text-2xl font-bold">{formatCurrency(metrics.totalValuation)}</p>
+                <p className="text-sm font-medium text-muted-foreground mb-1">Portfolio Value</p>
+                <p className="text-3xl font-bold">{formatCurrency(metrics.totalValuation)}</p>
               </div>
               <div className="p-3 rounded-full bg-primary/10">
                 <DollarSign className="h-6 w-6 text-primary" />
               </div>
             </div>
-            <div className="flex items-center mt-2 text-sm">
+            <div className="flex items-center text-sm">
               <ArrowUpRight className="h-4 w-4 text-green-500 mr-1" />
-              <span className="text-green-500">+{metrics.averageGrowthRate}%</span>
+              <span className="text-green-500 font-medium">+{metrics.averageGrowthRate}%</span>
               <span className="text-muted-foreground ml-1">vs last quarter</span>
             </div>
           </CardContent>
         </Card>
 
-        <Card className="shadow-soft bg-card-gradient border-0">
+        <Card className="shadow-soft bg-card-gradient border-0 hover-scale transition-all">
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-muted-foreground">Total Employees</p>
-                <p className="text-2xl font-bold">{metrics.totalEmployees}</p>
+                <p className="text-sm font-medium text-muted-foreground mb-1">Total Employees</p>
+                <p className="text-3xl font-bold">{metrics.totalEmployees}</p>
               </div>
               <div className="p-3 rounded-full bg-primary/10">
                 <Users className="h-6 w-6 text-primary" />
@@ -150,12 +150,12 @@ export const PortfolioOverview = () => {
           </CardContent>
         </Card>
 
-        <Card className="shadow-soft bg-card-gradient border-0">
+        <Card className="shadow-soft bg-card-gradient border-0 hover-scale transition-all">
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-muted-foreground">Active Investments</p>
-                <p className="text-2xl font-bold">{metrics.activeInvestments}</p>
+                <p className="text-sm font-medium text-muted-foreground mb-1">Active Investments</p>
+                <p className="text-3xl font-bold">{metrics.activeInvestments}</p>
               </div>
               <div className="p-3 rounded-full bg-primary/10">
                 <TrendingUp className="h-6 w-6 text-primary" />
@@ -188,14 +188,14 @@ export const PortfolioOverview = () => {
               companies.map((company) => (
                 <div 
                   key={company.id} 
-                  className="flex items-center justify-between p-4 rounded-lg bg-muted/10 hover:bg-muted/20 border border-border/40 transition-all hover-scale cursor-pointer"
+                  className="flex items-center justify-between p-4 rounded-lg bg-muted/10 hover:bg-muted/20 border border-border/50 transition-all hover-scale cursor-pointer shadow-soft"
                 >
                   <div className="flex items-center space-x-4">
-                    <div className="p-3 rounded-lg bg-primary-gradient shadow-elegant">
-                      <Building2 className="h-5 w-5 text-primary-foreground" />
+                    <div className="p-3 rounded-lg bg-primary/10 shadow-soft">
+                      <Building2 className="h-5 w-5 text-primary" />
                     </div>
                     <div>
-                      <h4 className="font-semibold">{company.name}</h4>
+                      <h4 className="font-semibold text-base">{company.name}</h4>
                       <div className="flex items-center space-x-2 text-sm text-muted-foreground mt-1">
                         <span>{company.industry}</span>
                         {company.stage && (
@@ -211,7 +211,7 @@ export const PortfolioOverview = () => {
                   </div>
                   <div className="text-right">
                     <p className="font-bold text-lg">{formatCurrency(company.current_funding || 0)}</p>
-                    <p className="text-sm text-muted-foreground flex items-center justify-end gap-1">
+                    <p className="text-sm text-muted-foreground flex items-center justify-end gap-1 mt-1">
                       <Users className="h-3 w-3" />
                       {company.employee_count || 0} team members
                     </p>

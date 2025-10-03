@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Input } from '@/components/ui/input';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { supabase } from '@/integrations/supabase/client';
@@ -156,6 +156,9 @@ export const CompanySelector = ({ selectedCompany, onCompanySelect }: CompanySel
             <DialogContent className="max-w-md">
               <DialogHeader>
                 <DialogTitle>Add New Company</DialogTitle>
+                <DialogDescription>
+                  Create a new company to add to your portfolio
+                </DialogDescription>
               </DialogHeader>
               <div className="space-y-4">
                 <div>
@@ -271,7 +274,7 @@ export const CompanySelector = ({ selectedCompany, onCompanySelect }: CompanySel
               </div>
 
               {selectedCompany && (
-                <div className="p-4 rounded-lg bg-muted/20 border border-border/40">
+                <div className="p-4 rounded-lg bg-muted/10 border border-border/50 shadow-soft">
                   <div className="flex items-start justify-between mb-3">
                     <div>
                       <h4 className="font-semibold">{selectedCompany.name}</h4>

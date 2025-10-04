@@ -140,64 +140,68 @@ const BusinessPlanViewer = ({ planId, onEdit, onBack }: BusinessPlanViewerProps)
   };
 
   return (
-    <div className="max-w-6xl mx-auto space-y-6">
+    <div className="max-w-7xl mx-auto space-y-6">
       {/* Header */}
-      <Card className="shadow-soft bg-card-gradient border-0">
-        <CardHeader>
-          <div className="flex items-start justify-between">
-            <div className="space-y-2">
-              <div className="flex items-center gap-2">
-                <FileText className="h-6 w-6 text-primary" />
-                <CardTitle className="text-2xl">{businessPlan.title}</CardTitle>
-                <Badge variant={businessPlan.status === 'active' ? 'default' : 'secondary'}>
-                  v{businessPlan.version}
-                </Badge>
-                <Badge variant="outline" className="capitalize">
-                  {businessPlan.status}
-                </Badge>
+      <Card className="shadow-elegant border overflow-hidden">
+        <div className="bg-primary/5 p-6">
+          <div className="flex items-start justify-between gap-4">
+            <div className="space-y-3 flex-1">
+              <div className="flex items-center gap-3 flex-wrap">
+                <div className="p-2 rounded-lg bg-primary/10">
+                  <FileText className="h-6 w-6 text-primary" />
+                </div>
+                <h2 className="text-3xl font-bold">{businessPlan.title}</h2>
+                <div className="flex items-center gap-2">
+                  <Badge variant={businessPlan.status === 'active' ? 'default' : 'secondary'} className="text-xs">
+                    v{businessPlan.version}
+                  </Badge>
+                  <Badge variant="outline" className="capitalize text-xs">
+                    {businessPlan.status}
+                  </Badge>
+                </div>
               </div>
               
-              <CardDescription className="text-base">
+              <p className="text-base text-muted-foreground">
                 {businessPlan.description}
-              </CardDescription>
+              </p>
               
-              <div className="flex items-center gap-4 text-sm text-muted-foreground">
-                <div className="flex items-center gap-1">
-                  <Calendar className="h-4 w-4" />
-                  Created {formatDate(businessPlan.created_at)}
+              <div className="flex items-center gap-4 text-sm text-muted-foreground flex-wrap">
+                <div className="flex items-center gap-2">
+                  <Calendar className="h-4 w-4 text-primary" />
+                  <span>Created {formatDate(businessPlan.created_at)}</span>
                 </div>
                 
-                <div className="flex items-center gap-1">
-                  <DollarSign className="h-4 w-4" />
-                  Funding Goal: {formatCurrency(businessPlan.funding_requirements)}
+                <div className="flex items-center gap-2">
+                  <DollarSign className="h-4 w-4 text-primary" />
+                  <span className="font-medium">Funding Goal: {formatCurrency(businessPlan.funding_requirements)}</span>
                 </div>
               </div>
             </div>
             
-            <div className="flex items-center gap-2">
-              <Button variant="outline" size="sm" onClick={downloadPDF}>
+            <div className="flex flex-col gap-2">
+              <Button variant="outline" size="sm" onClick={downloadPDF} className="whitespace-nowrap">
                 <Download className="h-4 w-4 mr-2" />
                 Export PDF
               </Button>
               
-              <Button variant="outline" size="sm" onClick={sharePlan}>
+              <Button variant="outline" size="sm" onClick={sharePlan} className="whitespace-nowrap">
                 <Share className="h-4 w-4 mr-2" />
                 Share
               </Button>
               
               {onEdit && (
-                <Button size="sm" onClick={onEdit} className="bg-primary-gradient hover:opacity-90">
+                <Button size="sm" onClick={onEdit} className="bg-primary-gradient hover:opacity-90 whitespace-nowrap">
                   <Edit className="h-4 w-4 mr-2" />
                   Edit Plan
                 </Button>
               )}
             </div>
           </div>
-        </CardHeader>
+        </div>
       </Card>
 
       {/* Business Plan Content */}
-      <Card className="shadow-soft bg-card-gradient border-0">
+      <Card className="shadow-soft border">
         <CardContent className="p-0">
           <Tabs defaultValue="executive-summary" className="w-full">
             <div className="border-b px-6 pt-6">

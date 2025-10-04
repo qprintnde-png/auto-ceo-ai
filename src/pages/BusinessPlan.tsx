@@ -5,9 +5,10 @@ import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { DashboardLayout } from '@/components/layouts/DashboardLayout';
 import BusinessPlanGenerator from '@/components/business-plan/BusinessPlanGenerator';
 import BusinessPlanViewer from '@/components/business-plan/BusinessPlanViewer';
-import { ArrowLeft, Plus, FileText, Calendar, DollarSign } from 'lucide-react';
+import { ArrowLeft, Plus, FileText, Calendar, DollarSign, TrendingUp, Sparkles } from 'lucide-react';
 
 interface Company {
   id: string;
@@ -132,115 +133,128 @@ const BusinessPlan = () => {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-subtle-gradient flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
-          <p className="text-muted-foreground">Loading your business plans...</p>
+      <DashboardLayout>
+        <div className="flex items-center justify-center min-h-[600px]">
+          <div className="text-center space-y-4">
+            <div className="animate-spin rounded-full h-12 w-12 border-4 border-primary border-t-transparent mx-auto"></div>
+            <p className="text-muted-foreground">Loading your business plans...</p>
+          </div>
         </div>
-      </div>
+      </DashboardLayout>
     );
   }
 
   if (companies.length === 0) {
     return (
-      <div className="min-h-screen bg-subtle-gradient p-4">
-        <div className="max-w-4xl mx-auto pt-12">
-          <Card className="shadow-elegant bg-card-gradient border-0 text-center p-8">
-            <FileText className="h-16 w-16 text-muted-foreground mx-auto mb-4" />
-            <h2 className="text-2xl font-bold mb-2">No Companies Found</h2>
-            <p className="text-muted-foreground mb-6">
-              You need to create a company first before generating business plans.
-            </p>
-            <Button onClick={() => window.location.href = '/onboarding'}>
-              Complete Company Setup
-            </Button>
-          </Card>
+      <DashboardLayout>
+        <div className="p-6">
+          <div className="max-w-2xl mx-auto">
+            <Card className="shadow-elegant border text-center overflow-hidden">
+              <div className="bg-primary/5 p-8">
+                <div className="inline-flex p-4 rounded-full bg-primary/10 mb-4">
+                  <FileText className="h-12 w-12 text-primary" />
+                </div>
+                <h2 className="text-2xl font-bold mb-2">No Companies Found</h2>
+                <p className="text-muted-foreground mb-6">
+                  You need to create a company first before generating business plans.
+                </p>
+                <Button onClick={() => window.location.href = '/onboarding'} size="lg" className="bg-primary-gradient hover:opacity-90">
+                  <Plus className="h-4 w-4 mr-2" />
+                  Complete Company Setup
+                </Button>
+              </div>
+            </Card>
+          </div>
         </div>
-      </div>
+      </DashboardLayout>
     );
   }
 
   return (
-    <div className="min-h-screen bg-subtle-gradient">
-      {/* Header */}
-      <header className="border-b bg-card/50 backdrop-blur-sm">
-        <div className="container mx-auto px-4 py-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-4">
-              {viewMode !== 'list' && (
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => {
-                    setViewMode('list');
-                    setSelectedPlanId(null);
-                  }}
-                >
-                  <ArrowLeft className="h-4 w-4 mr-2" />
-                  Back to Plans
-                </Button>
-              )}
-              
-              <div>
-                <h1 className="text-2xl font-bold bg-primary-gradient bg-clip-text text-transparent">
-                  Business Plans
-                </h1>
-                {selectedCompanyId && (
-                  <p className="text-sm text-muted-foreground">
-                    {companies.find(c => c.id === selectedCompanyId)?.name}
-                  </p>
-                )}
-              </div>
-            </div>
-
-            {viewMode === 'list' && (
-              <Button 
-                onClick={() => setViewMode('generator')}
-                className="bg-primary-gradient hover:opacity-90"
+    <DashboardLayout>
+      <div className="p-6 space-y-6">
+        {/* Header */}
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-4">
+            {viewMode !== 'list' && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => {
+                  setViewMode('list');
+                  setSelectedPlanId(null);
+                }}
               >
-                <Plus className="h-4 w-4 mr-2" />
-                Create New Plan
+                <ArrowLeft className="h-4 w-4 mr-2" />
+                Back to Plans
               </Button>
             )}
+            
+            <div>
+              <h1 className="text-3xl font-bold mb-1">Business Plans</h1>
+              {selectedCompanyId && (
+                <p className="text-muted-foreground">
+                  {companies.find(c => c.id === selectedCompanyId)?.name}
+                </p>
+              )}
+            </div>
           </div>
-        </div>
-      </header>
 
-      <main className="container mx-auto px-4 py-8">
+          {viewMode === 'list' && (
+            <Button 
+              onClick={() => setViewMode('generator')}
+              size="lg"
+              className="bg-primary-gradient hover:opacity-90 shadow-elegant"
+            >
+              <Sparkles className="h-4 w-4 mr-2" />
+              Create New Plan
+            </Button>
+          )}
+        </div>
         {viewMode === 'list' && (
           <div className="space-y-6">
             {businessPlans.length === 0 ? (
-              <Card className="shadow-soft bg-card-gradient border-0 text-center p-12">
-                <FileText className="h-16 w-16 text-muted-foreground mx-auto mb-4" />
-                <h3 className="text-xl font-semibold mb-2">No Business Plans Yet</h3>
-                <p className="text-muted-foreground mb-6">
-                  Create your first AI-powered business plan to get started with investor outreach and strategic planning.
-                </p>
-                <Button 
-                  onClick={() => setViewMode('generator')}
-                  className="bg-primary-gradient hover:opacity-90"
-                >
-                  <Plus className="h-4 w-4 mr-2" />
-                  Generate Your First Business Plan
-                </Button>
+              <Card className="shadow-soft border text-center overflow-hidden">
+                <div className="bg-primary/5 p-12">
+                  <div className="inline-flex p-4 rounded-full bg-primary/10 mb-4">
+                    <FileText className="h-16 w-16 text-primary" />
+                  </div>
+                  <h3 className="text-2xl font-semibold mb-2">No Business Plans Yet</h3>
+                  <p className="text-muted-foreground max-w-md mx-auto mb-6">
+                    Create your first AI-powered business plan to get started with investor outreach and strategic planning.
+                  </p>
+                  <Button 
+                    onClick={() => setViewMode('generator')}
+                    size="lg"
+                    className="bg-primary-gradient hover:opacity-90 shadow-elegant"
+                  >
+                    <Sparkles className="h-4 w-4 mr-2" />
+                    Generate Your First Business Plan
+                  </Button>
+                </div>
               </Card>
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 {businessPlans.map((plan) => (
                   <Card 
                     key={plan.id} 
-                    className="shadow-soft bg-card-gradient border-0 hover:shadow-feature transition-all duration-300 cursor-pointer"
+                    className="shadow-soft border hover:shadow-elegant transition-all duration-300 cursor-pointer hover-scale group"
                     onClick={() => handleViewPlan(plan.id)}
                   >
                     <CardHeader className="pb-3">
-                      <div className="flex items-start justify-between">
-                        <div className="space-y-1">
-                          <CardTitle className="text-lg leading-tight">{plan.title}</CardTitle>
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="space-y-2 flex-1">
                           <div className="flex items-center gap-2">
-                            <Badge variant={plan.status === 'active' ? 'default' : 'secondary'}>
+                            <div className="p-2 rounded-lg bg-primary/10 group-hover:bg-primary/20 transition-colors">
+                              <FileText className="h-4 w-4 text-primary" />
+                            </div>
+                            <CardTitle className="text-lg leading-tight line-clamp-1">{plan.title}</CardTitle>
+                          </div>
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <Badge variant={plan.status === 'active' ? 'default' : 'secondary'} className="text-xs">
                               v{plan.version}
                             </Badge>
-                            <Badge variant="outline" className="capitalize">
+                            <Badge variant="outline" className="capitalize text-xs">
                               {plan.status}
                             </Badge>
                           </div>
@@ -248,22 +262,27 @@ const BusinessPlan = () => {
                       </div>
                     </CardHeader>
                     
-                    <CardContent className="space-y-3">
-                      <CardDescription className="line-clamp-2">
+                    <CardContent className="space-y-4">
+                      <CardDescription className="line-clamp-2 text-sm">
                         {plan.description}
                       </CardDescription>
                       
-                      <div className="space-y-2 text-sm text-muted-foreground">
-                        <div className="flex items-center gap-2">
-                          <Calendar className="h-4 w-4" />
+                      <div className="space-y-2">
+                        <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                          <Calendar className="h-4 w-4 text-primary" />
                           <span>{formatDate(plan.created_at)}</span>
                         </div>
                         
-                        <div className="flex items-center gap-2">
-                          <DollarSign className="h-4 w-4" />
-                          <span>{formatCurrency(plan.funding_requirements)}</span>
+                        <div className="flex items-center gap-2 text-sm">
+                          <DollarSign className="h-4 w-4 text-primary" />
+                          <span className="font-medium">{formatCurrency(plan.funding_requirements)}</span>
                         </div>
                       </div>
+                      
+                      <Button variant="ghost" size="sm" className="w-full group-hover:bg-primary/10 transition-colors">
+                        <TrendingUp className="h-4 w-4 mr-2" />
+                        View Details
+                      </Button>
                     </CardContent>
                   </Card>
                 ))}
@@ -295,8 +314,8 @@ const BusinessPlan = () => {
             }}
           />
         )}
-      </main>
-    </div>
+      </div>
+    </DashboardLayout>
   );
 };
 

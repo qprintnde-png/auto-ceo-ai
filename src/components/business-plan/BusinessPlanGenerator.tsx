@@ -122,38 +122,49 @@ const BusinessPlanGenerator = ({ companyId, onPlanGenerated }: BusinessPlanGener
   };
 
   return (
-    <div className="max-w-4xl mx-auto space-y-8">
-      <div className="text-center">
-        <h1 className="text-3xl font-bold bg-primary-gradient bg-clip-text text-transparent mb-4">
-          AI Business Plan Generator
+    <div className="max-w-5xl mx-auto space-y-8">
+      <div className="text-center space-y-3">
+        <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-primary/10 text-primary text-sm font-medium mb-2">
+          <Lightbulb className="h-4 w-4" />
+          AI-Powered Business Planning
+        </div>
+        <h1 className="text-4xl font-bold">
+          Create Your Business Plan
         </h1>
-        <p className="text-lg text-muted-foreground">
-          Transform your business idea into a comprehensive, investor-ready business plan
+        <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
+          Transform your business idea into a comprehensive, investor-ready business plan with AI assistance
         </p>
       </div>
 
       {isGenerating && (
-        <Card className="shadow-soft bg-card-gradient border-0">
-          <CardContent className="p-8">
-            <div className="text-center space-y-4">
+        <Card className="shadow-elegant border overflow-hidden">
+          <div className="bg-primary/5 p-10">
+            <div className="text-center space-y-6">
               <div className="flex justify-center">
-                <Loader2 className="h-12 w-12 animate-spin text-primary" />
+                <div className="relative">
+                  <div className="absolute inset-0 bg-primary/20 rounded-full animate-ping"></div>
+                  <Loader2 className="relative h-16 w-16 animate-spin text-primary" />
+                </div>
               </div>
-              <h3 className="text-xl font-semibold">Generating Your Business Plan</h3>
-              <p className="text-muted-foreground">
-                Our AI is analyzing your business idea and creating comprehensive sections...
-              </p>
-              <Progress value={progress} className="w-full max-w-md mx-auto" />
-              <p className="text-sm text-muted-foreground">{progress}% Complete</p>
+              <div className="space-y-2">
+                <h3 className="text-2xl font-bold">Generating Your Business Plan</h3>
+                <p className="text-muted-foreground max-w-md mx-auto">
+                  Our AI is analyzing your business idea and creating comprehensive sections...
+                </p>
+              </div>
+              <div className="space-y-2">
+                <Progress value={progress} className="w-full max-w-md mx-auto h-3" />
+                <p className="text-sm font-medium text-primary">{progress}% Complete</p>
+              </div>
             </div>
-          </CardContent>
+          </div>
         </Card>
       )}
 
       {!isGenerating && (
-        <div className="grid gap-8">
+        <div className="grid gap-6">
           {/* Company Overview */}
-          <Card className="shadow-soft bg-card-gradient border-0">
+          <Card className="shadow-soft border hover:shadow-elegant transition-all">{/* ... keep existing code */}
             <CardHeader>
               <div className="flex items-center gap-2">
                 <Rocket className="h-5 w-5 text-primary" />
@@ -238,7 +249,7 @@ const BusinessPlanGenerator = ({ companyId, onPlanGenerated }: BusinessPlanGener
           </Card>
 
           {/* Problem & Solution */}
-          <Card className="shadow-soft bg-card-gradient border-0">
+          <Card className="shadow-soft border hover:shadow-elegant transition-all">
             <CardHeader>
               <div className="flex items-center gap-2">
                 <Lightbulb className="h-5 w-5 text-primary" />
@@ -285,7 +296,7 @@ const BusinessPlanGenerator = ({ companyId, onPlanGenerated }: BusinessPlanGener
           </Card>
 
           {/* Business Goals */}
-          <Card className="shadow-soft bg-card-gradient border-0">
+          <Card className="shadow-soft border hover:shadow-elegant transition-all">
             <CardHeader>
               <div className="flex items-center gap-2">
                 <Target className="h-5 w-5 text-primary" />
@@ -340,15 +351,15 @@ const BusinessPlanGenerator = ({ companyId, onPlanGenerated }: BusinessPlanGener
             </CardContent>
           </Card>
 
-          <div className="flex justify-center">
+          <div className="flex justify-center pt-4">
             <Button 
               onClick={generateBusinessPlan}
               size="lg"
-              className="bg-primary-gradient hover:opacity-90 px-8 py-3"
+              className="bg-primary-gradient hover:opacity-90 shadow-elegant px-10 py-6 text-lg"
               disabled={!validateForm()}
             >
               <Rocket className="h-5 w-5 mr-2" />
-              Generate Business Plan
+              Generate Business Plan with AI
             </Button>
           </div>
         </div>

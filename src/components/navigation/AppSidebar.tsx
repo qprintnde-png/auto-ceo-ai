@@ -7,7 +7,6 @@ import {
   DollarSign,
   Users,
   Briefcase,
-  FolderKanban,
   LogOut,
   Settings,
 } from "lucide-react";
@@ -34,7 +33,6 @@ const mainNavItems = [
   { title: "Financial", url: "/financial", icon: DollarSign },
   { title: "Investors", url: "/investors", icon: Briefcase },
   { title: "Team", url: "/team", icon: Users },
-  { title: "Portfolio", url: "/portfolio", icon: FolderKanban },
 ];
 
 export function AppSidebar() {

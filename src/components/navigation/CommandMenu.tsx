@@ -7,7 +7,6 @@ import {
   DollarSign,
   Users,
   Briefcase,
-  FolderKanban,
   Search,
   Settings,
 } from "lucide-react";
@@ -57,12 +56,6 @@ const navigationItems = [
     url: "/team",
     icon: Users,
     keywords: ["hiring", "candidates", "freelancers"],
-  },
-  {
-    title: "Portfolio",
-    url: "/portfolio",
-    icon: FolderKanban,
-    keywords: ["companies", "ventures", "equity"],
   },
   {
     title: "Settings",

@@ -97,18 +97,18 @@ const Dashboard = () => {
               <Card className="shadow-soft bg-card-gradient border-0 hover:shadow-feature transition-all duration-300">
                 <CardHeader className="pb-3">
                   <div className="flex items-center justify-between">
-                    <CardTitle className="text-lg">Portfolio Management</CardTitle>
-                    <Building2 className="h-5 w-5 text-primary" />
+                    <CardTitle className="text-lg">Team Management</CardTitle>
+                    <Users className="h-5 w-5 text-primary" />
                   </div>
                 </CardHeader>
                 <CardContent>
                   <CardDescription className="mb-4">
-                    Manage multiple companies and track portfolio performance
+                    Find and hire talented freelancers and team members
                   </CardDescription>
-                  <Link to="/portfolio">
+                  <Link to="/team">
                     <Button className="w-full bg-primary-gradient hover:opacity-90">
-                      <Building2 className="h-4 w-4 mr-2" />
-                      View Portfolio
+                      <Users className="h-4 w-4 mr-2" />
+                      Hire Talent
                     </Button>
                   </Link>
                 </CardContent>

@@ -14,7 +14,6 @@ import Tasks from "./pages/Tasks";
 import Financial from "./pages/Financial";
 import Investors from "./pages/Investors";
 import Team from "./pages/Team";
-import Portfolio from "./pages/Portfolio";
 import Onboarding from "./pages/Onboarding";
 import Settings from "./pages/Settings";
 import NotFound from "./pages/NotFound";
@@ -65,11 +64,6 @@ const App = () => (
             <Route path="/team" element={
               <ProtectedRoute>
                 <Team />
-              </ProtectedRoute>
-            } />
-            <Route path="/portfolio" element={
-              <ProtectedRoute>
-                <Portfolio />
               </ProtectedRoute>
             } />
             <Route path="/settings" element={

@@ -8,7 +8,7 @@ const routeLabels: Record<string, string> = {
   financial: "Financial",
   investors: "Investors",
   team: "Team",
-  portfolio: "Portfolio",
+  
   onboarding: "Onboarding",
   settings: "Settings",
 };

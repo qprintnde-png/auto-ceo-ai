@@ -139,7 +139,7 @@ export const CompanySelector = ({ selectedCompany, onCompanySelect }: CompanySel
   };
 
   return (
-    <Card className="shadow-soft bg-card-gradient border-0">
+    <Card className="shadow-soft border">
       <CardHeader>
         <div className="flex items-center justify-between">
           <CardTitle className="flex items-center gap-2">
@@ -274,7 +274,7 @@ export const CompanySelector = ({ selectedCompany, onCompanySelect }: CompanySel
               </div>
 
               {selectedCompany && (
-                <div className="p-4 rounded-lg bg-muted/10 border border-border/50 shadow-soft">
+                <div className="p-4 rounded-lg bg-muted/30 border">
                   <div className="flex items-start justify-between mb-3">
                     <div>
                       <h4 className="font-semibold">{selectedCompany.name}</h4>

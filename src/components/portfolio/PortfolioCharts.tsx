@@ -79,7 +79,7 @@ export const PortfolioCharts = ({ companies }: PortfolioChartsProps) => {
   return (
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
       {/* Portfolio Value Growth */}
-      <Card className="shadow-soft bg-card-gradient border-0 hover-scale transition-all overflow-hidden">
+      <Card className="shadow-soft border hover-scale transition-all overflow-hidden">
         <CardHeader className="pb-3">
           <CardTitle>Portfolio Value Growth</CardTitle>
           <CardDescription>6-month performance trend</CardDescription>
@@ -118,7 +118,7 @@ export const PortfolioCharts = ({ companies }: PortfolioChartsProps) => {
       </Card>
 
       {/* Industry Distribution */}
-      <Card className="shadow-soft bg-card-gradient border-0 hover-scale transition-all overflow-hidden">
+      <Card className="shadow-soft border hover-scale transition-all overflow-hidden">
         <CardHeader className="pb-3">
           <CardTitle>Industry Distribution</CardTitle>
           <CardDescription>Companies by industry sector</CardDescription>
@@ -146,7 +146,7 @@ export const PortfolioCharts = ({ companies }: PortfolioChartsProps) => {
       </Card>
 
       {/* Stage Distribution */}
-      <Card className="shadow-soft bg-card-gradient border-0 hover-scale transition-all overflow-hidden">
+      <Card className="shadow-soft border hover-scale transition-all overflow-hidden">
         <CardHeader className="pb-3">
           <CardTitle>Company Stages</CardTitle>
           <CardDescription>Distribution across funding stages</CardDescription>
@@ -172,7 +172,7 @@ export const PortfolioCharts = ({ companies }: PortfolioChartsProps) => {
       </Card>
 
       {/* Funding Progress */}
-      <Card className="shadow-soft bg-card-gradient border-0 hover-scale transition-all overflow-hidden">
+      <Card className="shadow-soft border hover-scale transition-all overflow-hidden">
         <CardHeader className="pb-3">
           <CardTitle>Funding Progress</CardTitle>
           <CardDescription>Current vs goal funding by company</CardDescription>

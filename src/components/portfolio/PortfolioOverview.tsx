@@ -103,7 +103,7 @@ export const PortfolioOverview = () => {
     <div className="space-y-6">
       {/* Portfolio Metrics */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        <Card className="shadow-soft bg-card-gradient border-0 hover-scale transition-all">
+        <Card className="shadow-soft border hover-scale transition-all">
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
@@ -117,7 +117,7 @@ export const PortfolioOverview = () => {
           </CardContent>
         </Card>
 
-        <Card className="shadow-soft bg-card-gradient border-0 hover-scale transition-all">
+        <Card className="shadow-soft border hover-scale transition-all">
           <CardContent className="p-6">
             <div className="flex items-center justify-between mb-3">
               <div>
@@ -136,7 +136,7 @@ export const PortfolioOverview = () => {
           </CardContent>
         </Card>
 
-        <Card className="shadow-soft bg-card-gradient border-0 hover-scale transition-all">
+        <Card className="shadow-soft border hover-scale transition-all">
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
@@ -150,7 +150,7 @@ export const PortfolioOverview = () => {
           </CardContent>
         </Card>
 
-        <Card className="shadow-soft bg-card-gradient border-0 hover-scale transition-all">
+        <Card className="shadow-soft border hover-scale transition-all">
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
@@ -169,7 +169,7 @@ export const PortfolioOverview = () => {
       <PortfolioCharts companies={companies} />
 
       {/* Company List */}
-      <Card className="shadow-soft bg-card-gradient border-0">
+      <Card className="shadow-soft border">
         <CardHeader>
           <CardTitle>Portfolio Companies</CardTitle>
           <CardDescription>
@@ -188,10 +188,10 @@ export const PortfolioOverview = () => {
               companies.map((company) => (
                 <div 
                   key={company.id} 
-                  className="flex items-center justify-between p-4 rounded-lg bg-muted/10 hover:bg-muted/20 border border-border/50 transition-all hover-scale cursor-pointer shadow-soft"
+                  className="flex items-center justify-between p-4 rounded-lg bg-muted/30 hover:bg-muted/40 border transition-all hover-scale cursor-pointer"
                 >
                   <div className="flex items-center space-x-4">
-                    <div className="p-3 rounded-lg bg-primary/10 shadow-soft">
+                    <div className="p-3 rounded-lg bg-primary/10">
                       <Building2 className="h-5 w-5 text-primary" />
                     </div>
                     <div>

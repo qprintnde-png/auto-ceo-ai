@@ -53,7 +53,7 @@ export const CompanyPerformance = ({ selectedCompany }: CompanyPerformanceProps)
   return (
     <div className="space-y-6">
       {/* Company Header */}
-      <Card className="shadow-elegant border-0 bg-card-gradient overflow-hidden">
+      <Card className="shadow-elegant border overflow-hidden">
         <CardHeader className="pb-6">
           <div className="flex items-start justify-between">
             <div className="flex items-start gap-4">
@@ -79,7 +79,7 @@ export const CompanyPerformance = ({ selectedCompany }: CompanyPerformanceProps)
 
       {/* Key Metrics */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <Card className="shadow-soft border-0 bg-card-gradient hover-scale transition-all">
+        <Card className="shadow-soft border hover-scale transition-all">
           <CardContent className="p-6">
             <div className="flex items-center justify-between mb-4">
               <div className="p-3 rounded-full bg-primary/10">
@@ -92,7 +92,7 @@ export const CompanyPerformance = ({ selectedCompany }: CompanyPerformanceProps)
           </CardContent>
         </Card>
 
-        <Card className="shadow-soft border-0 bg-card-gradient hover-scale transition-all">
+        <Card className="shadow-soft border hover-scale transition-all">
           <CardContent className="p-6">
             <div className="flex items-center justify-between mb-4">
               <div className="p-3 rounded-full bg-primary/10">
@@ -104,7 +104,7 @@ export const CompanyPerformance = ({ selectedCompany }: CompanyPerformanceProps)
           </CardContent>
         </Card>
 
-        <Card className="shadow-soft border-0 bg-card-gradient hover-scale transition-all">
+        <Card className="shadow-soft border hover-scale transition-all">
           <CardContent className="p-6">
             <div className="flex items-center justify-between mb-4">
               <div className="p-3 rounded-full bg-primary/10">
@@ -118,7 +118,7 @@ export const CompanyPerformance = ({ selectedCompany }: CompanyPerformanceProps)
       </div>
 
       {/* Funding Progress */}
-      <Card className="shadow-soft border-0 bg-card-gradient">
+      <Card className="shadow-soft border">
         <CardHeader>
           <CardTitle className="text-lg">Funding Progress</CardTitle>
           <CardDescription>
@@ -134,7 +134,7 @@ export const CompanyPerformance = ({ selectedCompany }: CompanyPerformanceProps)
       </Card>
 
       {/* Quick Actions */}
-      <Card className="shadow-soft border-0 bg-card-gradient">
+      <Card className="shadow-soft border">
         <CardHeader>
           <CardTitle className="text-lg">Quick Actions</CardTitle>
           <CardDescription>Manage and monitor your company</CardDescription>

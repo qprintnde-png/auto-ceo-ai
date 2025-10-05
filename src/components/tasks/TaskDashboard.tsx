@@ -3,7 +3,8 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
-import { Plus, CheckCircle2, Clock, AlertTriangle, Calendar } from 'lucide-react';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Plus, CheckCircle2, Clock, AlertTriangle, Calendar, Sparkles, Loader2 } from 'lucide-react';
 import { TaskForm } from './TaskForm';
 import { TaskCard } from './TaskCard';
 import { TaskFilters } from './TaskFilters';
@@ -30,6 +31,13 @@ interface Task {
   dependencies?: string[];
 }
 
+interface TaskSuggestion {
+  title: string;
+  description: string;
+  priority: string;
+  category: string;
+}
+
 interface Company {
   id: string;
   name: string;
@@ -42,6 +50,9 @@ export const TaskDashboard = () => {
   const [selectedCompany, setSelectedCompany] = useState<string>('');
   const [isLoading, setIsLoading] = useState(true);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [isSuggestingTasks, setIsSuggestingTasks] = useState(false);
+  const [taskSuggestions, setTaskSuggestions] = useState<TaskSuggestion[]>([]);
+  const [showSuggestions, setShowSuggestions] = useState(false);
   
   // Filter states
   const [searchTerm, setSearchTerm] = useState('');
@@ -142,6 +153,58 @@ export const TaskDashboard = () => {
     }
   };
 
+  const handleGetAISuggestions = async () => {
+    setIsSuggestingTasks(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('suggest-tasks', {
+        body: {
+          companyId: selectedCompany,
+          context: `Current task count: ${tasks.length}. Please suggest tasks to help grow and manage the business.`
+        }
+      });
+
+      if (error) throw error;
+
+      setTaskSuggestions(data.suggestions || []);
+      setShowSuggestions(true);
+      toast.success('AI task suggestions generated!');
+    } catch (error: any) {
+      console.error('Error getting task suggestions:', error);
+      toast.error(error.message || 'Failed to get task suggestions');
+    } finally {
+      setIsSuggestingTasks(false);
+    }
+  };
+
+  const handleAcceptSuggestion = async (suggestion: TaskSuggestion) => {
+    try {
+      const { error } = await supabase
+        .from('tasks')
+        .insert({
+          title: suggestion.title,
+          description: suggestion.description,
+          priority: suggestion.priority,
+          category: suggestion.category,
+          status: 'todo',
+          company_id: selectedCompany
+        });
+
+      if (error) throw error;
+      
+      toast.success('Task created from suggestion');
+      fetchTasks();
+      
+      // Remove accepted suggestion
+      setTaskSuggestions(prev => prev.filter(s => s.title !== suggestion.title));
+      if (taskSuggestions.length <= 1) {
+        setShowSuggestions(false);
+      }
+    } catch (error) {
+      console.error('Error creating task from suggestion:', error);
+      toast.error('Failed to create task');
+    }
+  };
+
   // Filter tasks
   const filteredTasks = tasks.filter((task) => {
     const matchesSearch = task.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -210,24 +273,40 @@ export const TaskDashboard = () => {
               </p>
             </div>
             
-            <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-              <DialogTrigger asChild>
-                <Button className="bg-primary-gradient">
-                  <Plus className="h-4 w-4 mr-2" />
-                  New Task
-                </Button>
-              </DialogTrigger>
-              <DialogContent className="max-w-2xl">
-                <DialogHeader>
-                  <DialogTitle>Create New Task</DialogTitle>
-                </DialogHeader>
-                <TaskForm
-                  companyId={selectedCompany}
-                  onTaskCreated={handleTaskCreated}
-                  onCancel={() => setIsDialogOpen(false)}
-                />
-              </DialogContent>
-            </Dialog>
+            <div className="flex gap-2">
+              <Button 
+                variant="outline"
+                onClick={handleGetAISuggestions}
+                disabled={isSuggestingTasks}
+                className="border-primary/20 hover:border-primary/40"
+              >
+                {isSuggestingTasks ? (
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                ) : (
+                  <Sparkles className="h-4 w-4 mr-2" />
+                )}
+                AI Suggestions
+              </Button>
+              
+              <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+                <DialogTrigger asChild>
+                  <Button className="bg-primary-gradient">
+                    <Plus className="h-4 w-4 mr-2" />
+                    New Task
+                  </Button>
+                </DialogTrigger>
+                <DialogContent className="max-w-2xl">
+                  <DialogHeader>
+                    <DialogTitle>Create New Task</DialogTitle>
+                  </DialogHeader>
+                  <TaskForm
+                    companyId={selectedCompany}
+                    onTaskCreated={handleTaskCreated}
+                    onCancel={() => setIsDialogOpen(false)}
+                  />
+                </DialogContent>
+              </Dialog>
+            </div>
           </div>
         </div>
       </header>
@@ -300,6 +379,62 @@ export const TaskDashboard = () => {
             />
           </CardContent>
         </Card>
+
+        {/* AI Suggestions */}
+        {showSuggestions && taskSuggestions.length > 0 && (
+          <Card className="shadow-soft bg-card-gradient border-0 mb-6">
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Sparkles className="h-5 w-5 text-primary" />
+                  <CardTitle>AI Task Suggestions</CardTitle>
+                </div>
+                <Button 
+                  variant="ghost" 
+                  size="sm"
+                  onClick={() => setShowSuggestions(false)}
+                >
+                  Dismiss
+                </Button>
+              </div>
+              <CardDescription>
+                AI-generated task suggestions based on your company profile
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-3">
+                {taskSuggestions.map((suggestion, index) => (
+                  <Alert key={index} className="border-primary/20">
+                    <div className="flex items-start justify-between gap-4">
+                      <div className="flex-1">
+                        <h4 className="font-semibold mb-1">{suggestion.title}</h4>
+                        <p className="text-sm text-muted-foreground mb-2">
+                          {suggestion.description}
+                        </p>
+                        <div className="flex gap-2">
+                          <Badge variant="outline" className="capitalize">
+                            {suggestion.priority}
+                          </Badge>
+                          <Badge variant="secondary">
+                            {suggestion.category}
+                          </Badge>
+                        </div>
+                      </div>
+                      <Button 
+                        size="sm"
+                        onClick={() => handleAcceptSuggestion(suggestion)}
+                        className="bg-primary-gradient shrink-0"
+                      >
+                        <Plus className="h-3 w-3 mr-1" />
+                        Add Task
+                      </Button>
+                    </div>
+                  </Alert>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        )}
 
         {/* Tasks Grid */}
         {filteredTasks.length === 0 ? (

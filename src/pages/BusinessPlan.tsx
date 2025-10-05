@@ -5,7 +5,6 @@ import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { DashboardLayout } from '@/components/layouts/DashboardLayout';
 import BusinessPlanGenerator from '@/components/business-plan/BusinessPlanGenerator';
 import BusinessPlanViewer from '@/components/business-plan/BusinessPlanViewer';
 import { ArrowLeft, Plus, FileText, Calendar, DollarSign, TrendingUp, Sparkles } from 'lucide-react';
@@ -133,178 +132,172 @@ const BusinessPlan = () => {
 
   if (loading) {
     return (
-      <DashboardLayout>
-        <div className="flex items-center justify-center min-h-[600px]">
-          <div className="text-center space-y-4">
-            <div className="animate-spin rounded-full h-12 w-12 border-4 border-primary border-t-transparent mx-auto"></div>
-            <p className="text-muted-foreground">Loading your business plans...</p>
-          </div>
+      <div className="flex items-center justify-center min-h-[600px]">
+        <div className="text-center space-y-4">
+          <div className="animate-spin rounded-full h-12 w-12 border-4 border-primary border-t-transparent mx-auto"></div>
+          <p className="text-muted-foreground">Loading your business plans...</p>
         </div>
-      </DashboardLayout>
+      </div>
     );
   }
 
   if (companies.length === 0) {
     return (
-      <DashboardLayout>
-        <div className="p-6">
-          <div className="max-w-2xl mx-auto">
-            <Card className="shadow-elegant border text-center overflow-hidden">
-              <div className="bg-primary/5 p-8">
-                <div className="inline-flex p-4 rounded-full bg-primary/10 mb-4">
-                  <FileText className="h-12 w-12 text-primary" />
-                </div>
-                <h2 className="text-2xl font-bold mb-2">No Companies Found</h2>
-                <p className="text-muted-foreground mb-6">
-                  You need to create a company first before generating business plans.
-                </p>
-                <Button onClick={() => window.location.href = '/onboarding'} size="lg" className="bg-primary-gradient hover:opacity-90">
-                  <Plus className="h-4 w-4 mr-2" />
-                  Complete Company Setup
-                </Button>
+      <div className="p-6">
+        <div className="max-w-2xl mx-auto">
+          <Card className="shadow-elegant border text-center overflow-hidden">
+            <div className="bg-primary/5 p-8">
+              <div className="inline-flex p-4 rounded-full bg-primary/10 mb-4">
+                <FileText className="h-12 w-12 text-primary" />
               </div>
-            </Card>
-          </div>
+              <h2 className="text-2xl font-bold mb-2">No Companies Found</h2>
+              <p className="text-muted-foreground mb-6">
+                You need to create a company first before generating business plans.
+              </p>
+              <Button onClick={() => window.location.href = '/onboarding'} size="lg" className="bg-primary-gradient hover:opacity-90">
+                <Plus className="h-4 w-4 mr-2" />
+                Complete Company Setup
+              </Button>
+            </div>
+          </Card>
         </div>
-      </DashboardLayout>
+      </div>
     );
   }
 
   return (
-    <DashboardLayout>
-      <div className="p-6 space-y-6">
-        {/* Action Bar */}
-        <div className="flex items-center justify-between">
-          {viewMode !== 'list' && (
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => {
-                setViewMode('list');
-                setSelectedPlanId(null);
-              }}
-            >
-              <ArrowLeft className="h-4 w-4 mr-2" />
-              Back to Plans
-            </Button>
-          )}
-          
-          {viewMode === 'list' && (
-            <Button 
-              onClick={() => setViewMode('generator')}
-              size="lg"
-              className="bg-primary-gradient hover:opacity-90 shadow-elegant ml-auto"
-            >
-              <Sparkles className="h-4 w-4 mr-2" />
-              Create New Plan
-            </Button>
-          )}
-        </div>
-        {viewMode === 'list' && (
-          <div className="space-y-6">
-            {businessPlans.length === 0 ? (
-              <Card className="shadow-soft border text-center overflow-hidden">
-                <div className="bg-primary/5 p-12">
-                  <div className="inline-flex p-4 rounded-full bg-primary/10 mb-4">
-                    <FileText className="h-16 w-16 text-primary" />
-                  </div>
-                  <h3 className="text-2xl font-semibold mb-2">No Business Plans Yet</h3>
-                  <p className="text-muted-foreground max-w-md mx-auto mb-6">
-                    Create your first AI-powered business plan to get started with investor outreach and strategic planning.
-                  </p>
-                  <Button 
-                    onClick={() => setViewMode('generator')}
-                    size="lg"
-                    className="bg-primary-gradient hover:opacity-90 shadow-elegant"
-                  >
-                    <Sparkles className="h-4 w-4 mr-2" />
-                    Generate Your First Business Plan
-                  </Button>
-                </div>
-              </Card>
-            ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {businessPlans.map((plan) => (
-                  <Card 
-                    key={plan.id} 
-                    className="shadow-soft border hover:shadow-elegant transition-all duration-300 cursor-pointer hover-scale group"
-                    onClick={() => handleViewPlan(plan.id)}
-                  >
-                    <CardHeader className="pb-3">
-                      <div className="flex items-start justify-between gap-3">
-                        <div className="space-y-2 flex-1">
-                          <div className="flex items-center gap-2">
-                            <div className="p-2 rounded-lg bg-primary/10 group-hover:bg-primary/20 transition-colors">
-                              <FileText className="h-4 w-4 text-primary" />
-                            </div>
-                            <CardTitle className="text-lg leading-tight line-clamp-1">{plan.title}</CardTitle>
-                          </div>
-                          <div className="flex items-center gap-2 flex-wrap">
-                            <Badge variant={plan.status === 'active' ? 'default' : 'secondary'} className="text-xs">
-                              v{plan.version}
-                            </Badge>
-                            <Badge variant="outline" className="capitalize text-xs">
-                              {plan.status}
-                            </Badge>
-                          </div>
-                        </div>
-                      </div>
-                    </CardHeader>
-                    
-                    <CardContent className="space-y-4">
-                      <CardDescription className="line-clamp-2 text-sm">
-                        {plan.description}
-                      </CardDescription>
-                      
-                      <div className="space-y-2">
-                        <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                          <Calendar className="h-4 w-4 text-primary" />
-                          <span>{formatDate(plan.created_at)}</span>
-                        </div>
-                        
-                        <div className="flex items-center gap-2 text-sm">
-                          <DollarSign className="h-4 w-4 text-primary" />
-                          <span className="font-medium">{formatCurrency(plan.funding_requirements)}</span>
-                        </div>
-                      </div>
-                      
-                      <Button variant="ghost" size="sm" className="w-full group-hover:bg-primary/10 transition-colors">
-                        <TrendingUp className="h-4 w-4 mr-2" />
-                        View Details
-                      </Button>
-                    </CardContent>
-                  </Card>
-                ))}
-              </div>
-            )}
-          </div>
-        )}
-
-        {viewMode === 'generator' && selectedCompanyId && (
-          <BusinessPlanGenerator 
-            companyId={selectedCompanyId}
-            onPlanGenerated={handlePlanGenerated}
-          />
-        )}
-
-        {viewMode === 'viewer' && selectedPlanId && (
-          <BusinessPlanViewer 
-            planId={selectedPlanId}
-            onEdit={() => {
-              // TODO: Implement edit functionality
-              toast({
-                title: "Coming Soon",
-                description: "Edit functionality will be available soon"
-              });
-            }}
-            onBack={() => {
+    <div className="p-6 space-y-6">
+      {/* Action Bar */}
+      <div className="flex items-center justify-between">
+        {viewMode !== 'list' && (
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => {
               setViewMode('list');
               setSelectedPlanId(null);
             }}
-          />
+          >
+            <ArrowLeft className="h-4 w-4 mr-2" />
+            Back to Plans
+          </Button>
+        )}
+        
+        {viewMode === 'list' && (
+          <Button 
+            onClick={() => setViewMode('generator')}
+            size="lg"
+            className="bg-primary-gradient hover:opacity-90 shadow-elegant ml-auto"
+          >
+            <Sparkles className="h-4 w-4 mr-2" />
+            Create New Plan
+          </Button>
         )}
       </div>
-    </DashboardLayout>
+      {viewMode === 'list' && (
+        <div className="space-y-6">
+          {businessPlans.length === 0 ? (
+            <Card className="shadow-soft border text-center overflow-hidden">
+              <div className="bg-primary/5 p-12">
+                <div className="inline-flex p-4 rounded-full bg-primary/10 mb-4">
+                  <FileText className="h-16 w-16 text-primary" />
+                </div>
+                <h3 className="text-2xl font-semibold mb-2">No Business Plans Yet</h3>
+                <p className="text-muted-foreground max-w-md mx-auto mb-6">
+                  Create your first AI-powered business plan to get started with investor outreach and strategic planning.
+                </p>
+                <Button 
+                  onClick={() => setViewMode('generator')}
+                  size="lg"
+                  className="bg-primary-gradient hover:opacity-90 shadow-elegant"
+                >
+                  <Sparkles className="h-4 w-4 mr-2" />
+                  Generate Your First Business Plan
+                </Button>
+              </div>
+            </Card>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {businessPlans.map((plan) => (
+                <Card 
+                  key={plan.id} 
+                  className="shadow-soft border hover:shadow-elegant transition-all duration-300 cursor-pointer hover-scale group"
+                  onClick={() => handleViewPlan(plan.id)}
+                >
+                  <CardHeader className="pb-3">
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="space-y-2 flex-1">
+                        <div className="flex items-center gap-2">
+                          <div className="p-2 rounded-lg bg-primary/10 group-hover:bg-primary/20 transition-colors">
+                            <FileText className="h-4 w-4 text-primary" />
+                          </div>
+                          <CardTitle className="text-lg leading-tight line-clamp-1">{plan.title}</CardTitle>
+                        </div>
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <Badge variant={plan.status === 'active' ? 'default' : 'secondary'} className="text-xs">
+                            v{plan.version}
+                          </Badge>
+                          <Badge variant="outline" className="capitalize text-xs">
+                            {plan.status}
+                          </Badge>
+                        </div>
+                      </div>
+                    </div>
+                  </CardHeader>
+                  
+                  <CardContent className="space-y-4">
+                    <CardDescription className="line-clamp-2 text-sm">
+                      {plan.description}
+                    </CardDescription>
+                    
+                    <div className="space-y-2">
+                      <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                        <Calendar className="h-4 w-4 text-primary" />
+                        <span>{formatDate(plan.created_at)}</span>
+                      </div>
+                      
+                      <div className="flex items-center gap-2 text-sm">
+                        <DollarSign className="h-4 w-4 text-primary" />
+                        <span className="font-medium">{formatCurrency(plan.funding_requirements)}</span>
+                      </div>
+                    </div>
+                    
+                    <Button variant="ghost" size="sm" className="w-full group-hover:bg-primary/10 transition-colors">
+                      <TrendingUp className="h-4 w-4 mr-2" />
+                      View Details
+                    </Button>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {viewMode === 'generator' && selectedCompanyId && (
+        <BusinessPlanGenerator 
+          companyId={selectedCompanyId}
+          onPlanGenerated={handlePlanGenerated}
+        />
+      )}
+
+      {viewMode === 'viewer' && selectedPlanId && (
+        <BusinessPlanViewer 
+          planId={selectedPlanId}
+          onEdit={() => {
+            // TODO: Implement edit functionality
+            toast({
+              title: "Coming Soon",
+              description: "Edit functionality will be available soon"
+            });
+          }}
+          onBack={() => {
+            setViewMode('list');
+            setSelectedPlanId(null);
+          }}
+        />
+      )}
+    </div>
   );
 };
 

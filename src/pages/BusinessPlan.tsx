@@ -173,38 +173,27 @@ const BusinessPlan = () => {
   return (
     <DashboardLayout>
       <div className="p-6 space-y-6">
-        {/* Header */}
+        {/* Action Bar */}
         <div className="flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            {viewMode !== 'list' && (
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => {
-                  setViewMode('list');
-                  setSelectedPlanId(null);
-                }}
-              >
-                <ArrowLeft className="h-4 w-4 mr-2" />
-                Back to Plans
-              </Button>
-            )}
-            
-            <div>
-              <h1 className="text-3xl font-bold mb-1">Business Plans</h1>
-              {selectedCompanyId && (
-                <p className="text-muted-foreground">
-                  {companies.find(c => c.id === selectedCompanyId)?.name}
-                </p>
-              )}
-            </div>
-          </div>
-
+          {viewMode !== 'list' && (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => {
+                setViewMode('list');
+                setSelectedPlanId(null);
+              }}
+            >
+              <ArrowLeft className="h-4 w-4 mr-2" />
+              Back to Plans
+            </Button>
+          )}
+          
           {viewMode === 'list' && (
             <Button 
               onClick={() => setViewMode('generator')}
               size="lg"
-              className="bg-primary-gradient hover:opacity-90 shadow-elegant"
+              className="bg-primary-gradient hover:opacity-90 shadow-elegant ml-auto"
             >
               <Sparkles className="h-4 w-4 mr-2" />
               Create New Plan

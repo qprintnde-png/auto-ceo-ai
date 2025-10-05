@@ -5,7 +5,7 @@ import { InvestorMatches } from "@/components/investors/InvestorMatches";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Loader2, TrendingUp, Building2, AlertCircle } from "lucide-react";
+import { Loader2, Building2, AlertCircle } from "lucide-react";
 
 interface Company {
   id: string;
@@ -80,16 +80,6 @@ export default function Investors() {
   return (
     <div className="container mx-auto px-4 py-8 space-y-8">
       <div className="space-y-4">
-        <div className="flex items-center gap-3">
-          <TrendingUp className="h-8 w-8 text-primary" />
-          <div>
-            <h1 className="text-3xl font-bold">Investor Matching</h1>
-            <p className="text-muted-foreground">
-              Find investors that align with your company profile and stage
-            </p>
-          </div>
-        </div>
-
         {companies.length > 1 && (
           <Card>
             <CardHeader>

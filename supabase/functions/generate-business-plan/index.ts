@@ -120,7 +120,7 @@ async function generateBusinessPlanSections(
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'gpt-4.1-2025-04-14',
+        model: 'gpt-5-mini-2025-08-07',
         messages: [
           {
             role: 'system',
@@ -131,13 +131,14 @@ async function generateBusinessPlanSections(
             content: prompt
           }
         ],
-        max_tokens: 1500,
-        temperature: 0.7
+        max_completion_tokens: 1500
       }),
     });
 
     if (!response.ok) {
-      throw new Error(`OpenAI API error for ${sectionName}: ${response.statusText}`);
+      const errorText = await response.text();
+      console.error(`OpenAI API error for ${sectionName}:`, response.status, errorText);
+      throw new Error(`OpenAI API error for ${sectionName}: ${response.status} - ${errorText}`);
     }
 
     const data = await response.json();

@@ -20,3 +20,6 @@ verify_jwt = true
 
 [functions.generate-financial-forecast]
 verify_jwt = true
+
+[functions.seed-investors]
+verify_jwt = false

@@ -66,7 +66,7 @@ Deno.serve(async (req) => {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'gpt-4',
+        model: 'gpt-5-mini-2025-08-07',
         messages: [
           {
             role: 'system',
@@ -105,13 +105,15 @@ Deno.serve(async (req) => {
             `
           }
         ],
-        temperature: 0.7,
-        max_tokens: 800
+        max_completion_tokens: 800,
+        response_format: { type: "json_object" }
       }),
     });
 
     if (!openaiResponse.ok) {
-      throw new Error('Failed to generate pitch email');
+      const errorText = await openaiResponse.text();
+      console.error('OpenAI API error:', openaiResponse.status, errorText);
+      throw new Error(`Failed to generate pitch email: ${openaiResponse.status}`);
     }
 
     const openaiData = await openaiResponse.json();

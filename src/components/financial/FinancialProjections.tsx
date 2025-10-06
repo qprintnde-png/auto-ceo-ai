@@ -1,9 +1,12 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
-import { TrendingUp, Calculator, Target, AlertTriangle } from 'lucide-react';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { TrendingUp, Calculator, Target, AlertTriangle, Sparkles, Loader2, Info, TrendingDown } from 'lucide-react';
+import { supabase } from '@/integrations/supabase/client';
+import { toast } from 'sonner';
 
 interface FinancialData {
   id: string;
@@ -29,11 +32,14 @@ interface FinancialProjectionsProps {
 export const FinancialProjections = ({ historicalData, onGenerateProjections }: FinancialProjectionsProps) => {
   const [projectionPeriods, setProjectionPeriods] = useState('12');
   const [growthAssumptions, setGrowthAssumptions] = useState({
-    revenueGrowth: 15, // 15% monthly growth
-    expenseGrowth: 8,  // 8% monthly growth
-    customerGrowth: 20, // 20% monthly customer growth
+    revenueGrowth: 15,
+    expenseGrowth: 8,
+    customerGrowth: 20,
   });
   const [projections, setProjections] = useState<any[]>([]);
+  const [isGenerating, setIsGenerating] = useState(false);
+  const [aiInsights, setAiInsights] = useState<any>(null);
+  const [useAI, setUseAI] = useState(false);
 
   // Calculate growth rates from historical data
   const calculateGrowthRates = () => {
@@ -57,54 +63,110 @@ export const FinancialProjections = ({ historicalData, onGenerateProjections }: 
     };
   };
 
-  const generateProjections = () => {
-    if (historicalData.length === 0) return;
-
-    const lastActualData = historicalData.filter(d => !d.is_projection)[0] || historicalData[0];
-    const periods = parseInt(projectionPeriods);
-    const newProjections = [];
-
-    let currentRevenue = lastActualData.revenue || 0;
-    let currentExpenses = lastActualData.expenses || 0;
-    let currentMRR = lastActualData.monthly_recurring_revenue || 0;
-
-    for (let i = 1; i <= periods; i++) {
-      const periodDate = new Date();
-      periodDate.setMonth(periodDate.getMonth() + i);
-
-      // Apply growth rates
-      currentRevenue *= (1 + growthAssumptions.revenueGrowth / 100);
-      currentExpenses *= (1 + growthAssumptions.expenseGrowth / 100);
-      currentMRR *= (1 + growthAssumptions.customerGrowth / 100);
-
-      const grossProfit = currentRevenue * 0.7; // Assume 70% gross margin
-      const netProfit = grossProfit - currentExpenses;
-      const burnRate = currentExpenses - currentRevenue;
-      
-      // Calculate runway (assuming current cash position)
-      const runwayMonths = burnRate > 0 ? Math.max(0, 12 - i) : 999;
-
-      const projection = {
-        period: i,
-        period_start: periodDate.toISOString().split('T')[0],
-        period_end: new Date(periodDate.getTime() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-        period_type: 'monthly',
-        revenue: Math.round(currentRevenue),
-        expenses: Math.round(currentExpenses),
-        gross_profit: Math.round(grossProfit),
-        net_profit: Math.round(netProfit),
-        cash_flow: Math.round(currentRevenue - currentExpenses),
-        monthly_recurring_revenue: Math.round(currentMRR),
-        burn_rate: Math.round(Math.max(0, burnRate)),
-        runway_months: runwayMonths,
-        is_projection: true,
-      };
-
-      newProjections.push(projection);
+  const generateProjections = async () => {
+    if (historicalData.length === 0) {
+      toast.error('Add some historical data first');
+      return;
     }
 
-    setProjections(newProjections);
-    onGenerateProjections(newProjections);
+    setIsGenerating(true);
+    setAiInsights(null);
+
+    try {
+      if (useAI) {
+        // AI-powered forecast
+        const { data: companyData } = await supabase
+          .from('companies')
+          .select('*')
+          .limit(1)
+          .single();
+
+        const { data, error } = await supabase.functions.invoke('generate-financial-forecast', {
+          body: {
+            historicalData: historicalData.slice(-6), // Last 6 months
+            periods: parseInt(projectionPeriods),
+            assumptions: growthAssumptions,
+            companyInfo: companyData,
+          },
+        });
+
+        if (error) throw error;
+
+        // Format projections with dates
+        const formattedProjections = data.projections.map((proj: any) => {
+          const periodDate = new Date();
+          periodDate.setMonth(periodDate.getMonth() + proj.period);
+          
+          return {
+            ...proj,
+            period_start: periodDate.toISOString().split('T')[0],
+            period_end: new Date(periodDate.getTime() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+            period_type: 'monthly',
+            is_projection: true,
+          };
+        });
+
+        setProjections(formattedProjections);
+        setAiInsights({
+          insights: data.insights || [],
+          risks: data.risks || [],
+          recommendations: data.recommendations || [],
+        });
+        onGenerateProjections(formattedProjections);
+        toast.success('AI forecast generated successfully');
+      } else {
+        // Traditional calculation
+        const lastActualData = [...historicalData].filter(d => !d.is_projection).sort((a, b) => 
+          new Date(b.period_start).getTime() - new Date(a.period_start).getTime()
+        )[0] || historicalData[0];
+        
+        const periods = parseInt(projectionPeriods);
+        const newProjections = [];
+
+        let currentRevenue = lastActualData.revenue || 0;
+        let currentExpenses = lastActualData.expenses || 0;
+        let currentMRR = lastActualData.monthly_recurring_revenue || 0;
+
+        for (let i = 1; i <= periods; i++) {
+          const periodDate = new Date();
+          periodDate.setMonth(periodDate.getMonth() + i);
+
+          currentRevenue *= (1 + growthAssumptions.revenueGrowth / 100);
+          currentExpenses *= (1 + growthAssumptions.expenseGrowth / 100);
+          currentMRR *= (1 + growthAssumptions.customerGrowth / 100);
+
+          const grossProfit = currentRevenue * 0.7;
+          const netProfit = grossProfit - currentExpenses;
+          const burnRate = Math.max(0, currentExpenses - currentRevenue);
+          const runwayMonths = burnRate > 0 ? Math.max(0, 12 - i) : 999;
+
+          newProjections.push({
+            period: i,
+            period_start: periodDate.toISOString().split('T')[0],
+            period_end: new Date(periodDate.getTime() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+            period_type: 'monthly',
+            revenue: Math.round(currentRevenue),
+            expenses: Math.round(currentExpenses),
+            gross_profit: Math.round(grossProfit),
+            net_profit: Math.round(netProfit),
+            cash_flow: Math.round(currentRevenue - currentExpenses),
+            monthly_recurring_revenue: Math.round(currentMRR),
+            burn_rate: Math.round(burnRate),
+            runway_months: runwayMonths,
+            is_projection: true,
+          });
+        }
+
+        setProjections(newProjections);
+        onGenerateProjections(newProjections);
+        toast.success('Projections generated');
+      }
+    } catch (error) {
+      console.error('Error generating projections:', error);
+      toast.error('Failed to generate projections');
+    } finally {
+      setIsGenerating(false);
+    }
   };
 
   // Calculate key insights
@@ -166,10 +228,28 @@ export const FinancialProjections = ({ historicalData, onGenerateProjections }: 
               </CardTitle>
               <CardDescription>Generate forward-looking financial forecasts</CardDescription>
             </div>
-            <Button onClick={generateProjections} className="bg-primary-gradient">
-              <TrendingUp className="h-4 w-4 mr-2" />
-              Generate Projections
-            </Button>
+            <div className="flex gap-2">
+              <Button
+                variant={useAI ? "default" : "outline"}
+                onClick={() => setUseAI(!useAI)}
+                className={useAI ? "bg-primary-gradient" : ""}
+              >
+                <Sparkles className="h-4 w-4 mr-2" />
+                {useAI ? 'AI Mode' : 'Traditional'}
+              </Button>
+              <Button 
+                onClick={generateProjections} 
+                disabled={isGenerating}
+                className="bg-primary-gradient"
+              >
+                {isGenerating ? (
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                ) : (
+                  <TrendingUp className="h-4 w-4 mr-2" />
+                )}
+                Generate Forecast
+              </Button>
+            </div>
           </div>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -247,6 +327,69 @@ export const FinancialProjections = ({ historicalData, onGenerateProjections }: 
                   </div>
                 ))}
               </div>
+            </div>
+          )}
+
+          {aiInsights && (
+            <div className="space-y-4">
+              {aiInsights.insights && aiInsights.insights.length > 0 && (
+                <div>
+                  <h4 className="text-sm font-medium mb-3 flex items-center gap-2">
+                    <Sparkles className="h-4 w-4" />
+                    AI-Powered Insights
+                  </h4>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                    {aiInsights.insights.map((insight: any, index: number) => (
+                      <div key={index} className="p-3 rounded-lg bg-muted/50 border">
+                        <div className="flex items-center justify-between mb-1">
+                          <span className="text-sm font-medium">{insight.title}</span>
+                          {insight.type === 'warning' ? (
+                            <AlertTriangle className="h-4 w-4 text-amber-500" />
+                          ) : insight.type === 'growth' ? (
+                            <TrendingUp className="h-4 w-4 text-green-500" />
+                          ) : insight.type === 'opportunity' ? (
+                            <Target className="h-4 w-4 text-blue-500" />
+                          ) : (
+                            <TrendingDown className="h-4 w-4 text-red-500" />
+                          )}
+                        </div>
+                        <div className={`text-lg font-bold ${insight.positive ? 'text-green-500' : 'text-red-500'}`}>
+                          {insight.value}
+                        </div>
+                        <p className="text-xs text-muted-foreground">{insight.description}</p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {aiInsights.risks && aiInsights.risks.length > 0 && (
+                <Alert>
+                  <AlertTriangle className="h-4 w-4" />
+                  <AlertTitle>Risk Factors</AlertTitle>
+                  <AlertDescription>
+                    <ul className="list-disc list-inside space-y-1 mt-2">
+                      {aiInsights.risks.map((risk: string, index: number) => (
+                        <li key={index} className="text-sm">{risk}</li>
+                      ))}
+                    </ul>
+                  </AlertDescription>
+                </Alert>
+              )}
+
+              {aiInsights.recommendations && aiInsights.recommendations.length > 0 && (
+                <Alert>
+                  <Info className="h-4 w-4" />
+                  <AlertTitle>Recommendations</AlertTitle>
+                  <AlertDescription>
+                    <ul className="list-disc list-inside space-y-1 mt-2">
+                      {aiInsights.recommendations.map((rec: string, index: number) => (
+                        <li key={index} className="text-sm">{rec}</li>
+                      ))}
+                    </ul>
+                  </AlertDescription>
+                </Alert>
+              )}
             </div>
           )}
         </CardContent>

@@ -17,3 +17,6 @@ verify_jwt = false
 
 [functions.suggest-tasks]
 verify_jwt = true
+
+[functions.generate-financial-forecast]
+verify_jwt = true

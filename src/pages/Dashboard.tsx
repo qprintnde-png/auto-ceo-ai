@@ -3,12 +3,13 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { LogOut, Settings, Plus, BarChart3, Users, Target, TrendingUp, Building2, Brain, Activity } from 'lucide-react';
+import { LogOut, Settings, Plus, BarChart3, Users, Target, TrendingUp, Building2, Brain, Activity, Briefcase } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { DashboardMetrics } from '@/components/dashboard/DashboardMetrics';
 import { ActivityFeed } from '@/components/dashboard/ActivityFeed';
 import { DashboardCharts } from '@/components/dashboard/DashboardCharts';
 import { AIInsights } from '@/components/dashboard/AIInsights';
+import { PortfolioOverview } from '@/components/dashboard/PortfolioOverview';
 
 const Dashboard = () => {
   const { user, signOut } = useAuth();
@@ -48,8 +49,12 @@ const Dashboard = () => {
       </header>
 
       <main className="container mx-auto px-4 py-8">
-        <Tabs defaultValue="overview" className="w-full">
+        <Tabs defaultValue="portfolio" className="w-full">
           <TabsList className="mb-6">
+            <TabsTrigger value="portfolio" className="flex items-center gap-2">
+              <Briefcase className="h-4 w-4" />
+              Portfolio
+            </TabsTrigger>
             <TabsTrigger value="overview" className="flex items-center gap-2">
               <BarChart3 className="h-4 w-4" />
               Overview
@@ -67,6 +72,10 @@ const Dashboard = () => {
               Activity
             </TabsTrigger>
           </TabsList>
+
+          <TabsContent value="portfolio" className="space-y-8">
+            <PortfolioOverview />
+          </TabsContent>
 
           <TabsContent value="overview" className="space-y-8">
             {/* Key Metrics */}

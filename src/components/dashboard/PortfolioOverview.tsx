@@ -1,0 +1,310 @@
+import { useState, useEffect } from 'react';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { Progress } from '@/components/ui/progress';
+import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/hooks/useAuth';
+import { Link } from 'react-router-dom';
+import { 
+  Building2, 
+  TrendingUp, 
+  TrendingDown,
+  DollarSign, 
+  Users,
+  Calendar,
+  ExternalLink,
+  Plus,
+  Target,
+  Briefcase
+} from 'lucide-react';
+
+interface Company {
+  id: string;
+  name: string;
+  industry: string;
+  stage: string;
+  description: string;
+  current_funding: number;
+  funding_goal: number;
+  founded_date: string;
+  employee_count: number;
+  location: string;
+}
+
+interface CompanyMetrics {
+  company: Company;
+  revenue: number;
+  tasks_completed: number;
+  total_tasks: number;
+  team_size: number;
+  investor_matches: number;
+  growth_rate: number;
+}
+
+export const PortfolioOverview = () => {
+  const { user } = useAuth();
+  const [companies, setCompanies] = useState<CompanyMetrics[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (user) {
+      fetchPortfolioData();
+    }
+  }, [user]);
+
+  const fetchPortfolioData = async () => {
+    try {
+      // Get all companies
+      const { data: companiesData } = await supabase
+        .from('companies')
+        .select('*')
+        .eq('owner_id', user?.id)
+        .order('created_at', { ascending: false });
+
+      if (!companiesData) {
+        setCompanies([]);
+        return;
+      }
+
+      // Fetch metrics for each company
+      const companiesWithMetrics = await Promise.all(
+        companiesData.map(async (company) => {
+          // Get latest financial data
+          const { data: financialData } = await supabase
+            .from('financial_data')
+            .select('revenue')
+            .eq('company_id', company.id)
+            .eq('is_projection', false)
+            .order('period_start', { ascending: false })
+            .limit(1)
+            .maybeSingle();
+
+          // Get tasks
+          const { data: tasks } = await supabase
+            .from('tasks')
+            .select('id, status')
+            .eq('company_id', company.id);
+
+          // Get team members
+          const { data: team } = await supabase
+            .from('team_members')
+            .select('id')
+            .eq('company_id', company.id);
+
+          // Get investor matches
+          const { data: investors } = await supabase
+            .from('investor_matches')
+            .select('id')
+            .eq('company_id', company.id);
+
+          const completedTasks = tasks?.filter(t => t.status === 'completed').length || 0;
+          const totalTasks = tasks?.length || 0;
+
+          return {
+            company,
+            revenue: financialData?.revenue || 0,
+            tasks_completed: completedTasks,
+            total_tasks: totalTasks,
+            team_size: team?.length || 0,
+            investor_matches: investors?.length || 0,
+            growth_rate: Math.random() * 30 + 5, // Mock growth rate
+          };
+        })
+      );
+
+      setCompanies(companiesWithMetrics);
+    } catch (error) {
+      console.error('Error fetching portfolio data:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const formatCurrency = (amount: number) => {
+    return new Intl.NumberFormat('en-US', {
+      style: 'currency',
+      currency: 'USD',
+      notation: 'compact',
+      maximumFractionDigits: 1,
+    }).format(amount);
+  };
+
+  const getStageColor = (stage: string) => {
+    switch (stage?.toLowerCase()) {
+      case 'pre-seed':
+        return 'bg-blue-500/10 text-blue-500';
+      case 'seed':
+        return 'bg-green-500/10 text-green-500';
+      case 'series a':
+        return 'bg-purple-500/10 text-purple-500';
+      case 'series b':
+        return 'bg-orange-500/10 text-orange-500';
+      case 'growth':
+        return 'bg-pink-500/10 text-pink-500';
+      default:
+        return 'bg-gray-500/10 text-gray-500';
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
+        {[...Array(3)].map((_, i) => (
+          <Card key={i} className="animate-pulse">
+            <CardContent className="h-64 bg-muted/20 rounded-lg" />
+          </Card>
+        ))}
+      </div>
+    );
+  }
+
+  if (companies.length === 0) {
+    return (
+      <Card className="shadow-soft bg-card-gradient border-0">
+        <CardContent className="text-center py-12">
+          <Building2 className="h-16 w-16 text-muted-foreground mx-auto mb-4" />
+          <h3 className="text-xl font-semibold mb-2">No Companies Yet</h3>
+          <p className="text-muted-foreground mb-6">
+            Start building your portfolio by creating your first company
+          </p>
+          <Button className="bg-primary-gradient">
+            <Plus className="h-4 w-4 mr-2" />
+            Create Company
+          </Button>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <div>
+          <h2 className="text-2xl font-bold">Your Portfolio</h2>
+          <p className="text-muted-foreground">
+            Managing {companies.length} {companies.length === 1 ? 'company' : 'companies'}
+          </p>
+        </div>
+        <Button className="bg-primary-gradient">
+          <Plus className="h-4 w-4 mr-2" />
+          Add Company
+        </Button>
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
+        {companies.map(({ company, revenue, tasks_completed, total_tasks, team_size, investor_matches, growth_rate }) => {
+          const fundingProgress = company.funding_goal > 0 
+            ? (company.current_funding / company.funding_goal) * 100 
+            : 0;
+          const taskProgress = total_tasks > 0 
+            ? (tasks_completed / total_tasks) * 100 
+            : 0;
+
+          return (
+            <Card key={company.id} className="shadow-soft bg-card-gradient border-0 hover:shadow-feature transition-all duration-300">
+              <CardHeader className="pb-3">
+                <div className="flex items-start justify-between">
+                  <div className="flex-1">
+                    <CardTitle className="text-xl mb-1">{company.name}</CardTitle>
+                    <CardDescription className="line-clamp-2">
+                      {company.description || 'No description provided'}
+                    </CardDescription>
+                  </div>
+                  <Badge variant="secondary" className={getStageColor(company.stage)}>
+                    {company.stage}
+                  </Badge>
+                </div>
+              </CardHeader>
+
+              <CardContent className="space-y-4">
+                {/* Key Metrics Row */}
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="p-3 rounded-lg bg-muted/30">
+                    <div className="flex items-center justify-between mb-1">
+                      <span className="text-xs text-muted-foreground">Revenue</span>
+                      <DollarSign className="h-3 w-3 text-green-500" />
+                    </div>
+                    <p className="text-lg font-bold">{formatCurrency(revenue)}</p>
+                    <div className="flex items-center text-xs mt-1">
+                      <TrendingUp className="h-3 w-3 text-green-500 mr-1" />
+                      <span className="text-green-500">+{growth_rate.toFixed(1)}%</span>
+                    </div>
+                  </div>
+
+                  <div className="p-3 rounded-lg bg-muted/30">
+                    <div className="flex items-center justify-between mb-1">
+                      <span className="text-xs text-muted-foreground">Funding</span>
+                      <Target className="h-3 w-3 text-primary" />
+                    </div>
+                    <p className="text-lg font-bold">{formatCurrency(company.current_funding)}</p>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      of {formatCurrency(company.funding_goal)}
+                    </p>
+                  </div>
+                </div>
+
+                {/* Funding Progress */}
+                <div>
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-xs font-medium">Funding Progress</span>
+                    <span className="text-xs text-muted-foreground">{fundingProgress.toFixed(0)}%</span>
+                  </div>
+                  <Progress value={fundingProgress} className="h-2" />
+                </div>
+
+                {/* Task Progress */}
+                <div>
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-xs font-medium">Tasks Completed</span>
+                    <span className="text-xs text-muted-foreground">
+                      {tasks_completed} / {total_tasks}
+                    </span>
+                  </div>
+                  <Progress value={taskProgress} className="h-2" />
+                </div>
+
+                {/* Quick Stats */}
+                <div className="grid grid-cols-3 gap-2 pt-2">
+                  <div className="text-center p-2 rounded-lg bg-muted/20">
+                    <Users className="h-4 w-4 mx-auto mb-1 text-primary" />
+                    <p className="text-xs font-medium">{team_size}</p>
+                    <p className="text-xs text-muted-foreground">Team</p>
+                  </div>
+
+                  <div className="text-center p-2 rounded-lg bg-muted/20">
+                    <TrendingUp className="h-4 w-4 mx-auto mb-1 text-primary" />
+                    <p className="text-xs font-medium">{investor_matches}</p>
+                    <p className="text-xs text-muted-foreground">Investors</p>
+                  </div>
+
+                  <div className="text-center p-2 rounded-lg bg-muted/20">
+                    <Briefcase className="h-4 w-4 mx-auto mb-1 text-primary" />
+                    <p className="text-xs font-medium">{company.industry}</p>
+                    <p className="text-xs text-muted-foreground">Industry</p>
+                  </div>
+                </div>
+
+                {/* Action Buttons */}
+                <div className="flex gap-2 pt-2">
+                  <Link to={`/business-plan?company=${company.id}`} className="flex-1">
+                    <Button variant="outline" size="sm" className="w-full">
+                      <ExternalLink className="h-3 w-3 mr-1" />
+                      View Details
+                    </Button>
+                  </Link>
+                  <Link to={`/financial?company=${company.id}`} className="flex-1">
+                    <Button variant="default" size="sm" className="w-full bg-primary-gradient">
+                      <DollarSign className="h-3 w-3 mr-1" />
+                      Financials
+                    </Button>
+                  </Link>
+                </div>
+              </CardContent>
+            </Card>
+          );
+        })}
+      </div>
+    </div>
+  );
+};

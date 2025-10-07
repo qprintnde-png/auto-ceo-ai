@@ -2,6 +2,10 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ProfileSettings } from "@/components/settings/ProfileSettings";
 import { AccountSettings } from "@/components/settings/AccountSettings";
 import { CompanySettings } from "@/components/settings/CompanySettings";
+import { PreferencesSettings } from "@/components/settings/PreferencesSettings";
+import { IntegrationsSettings } from "@/components/settings/IntegrationsSettings";
+import { SecuritySettings } from "@/components/settings/SecuritySettings";
+import { DataSettings } from "@/components/settings/DataSettings";
 
 const Settings = () => {
   return (
@@ -14,10 +18,14 @@ const Settings = () => {
       </div>
 
       <Tabs defaultValue="profile" className="space-y-6">
-        <TabsList className="grid w-full grid-cols-3">
+        <TabsList className="grid w-full grid-cols-7 h-auto">
           <TabsTrigger value="profile">Profile</TabsTrigger>
           <TabsTrigger value="account">Account</TabsTrigger>
           <TabsTrigger value="company">Company</TabsTrigger>
+          <TabsTrigger value="preferences">Preferences</TabsTrigger>
+          <TabsTrigger value="integrations">Integrations</TabsTrigger>
+          <TabsTrigger value="security">Security</TabsTrigger>
+          <TabsTrigger value="data">Data</TabsTrigger>
         </TabsList>
 
         <TabsContent value="profile" className="space-y-4">
@@ -30,6 +38,22 @@ const Settings = () => {
 
         <TabsContent value="company" className="space-y-4">
           <CompanySettings />
+        </TabsContent>
+
+        <TabsContent value="preferences" className="space-y-4">
+          <PreferencesSettings />
+        </TabsContent>
+
+        <TabsContent value="integrations" className="space-y-4">
+          <IntegrationsSettings />
+        </TabsContent>
+
+        <TabsContent value="security" className="space-y-4">
+          <SecuritySettings />
+        </TabsContent>
+
+        <TabsContent value="data" className="space-y-4">
+          <DataSettings />
         </TabsContent>
       </Tabs>
     </div>

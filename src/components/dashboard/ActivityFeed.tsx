@@ -220,9 +220,9 @@ export const ActivityFeed = () => {
 
   if (loading) {
     return (
-      <Card className="shadow-soft bg-card-gradient border-0">
+      <Card className="shadow-card border">
         <CardHeader>
-          <CardTitle>Recent Activity</CardTitle>
+          <CardTitle className="text-lg font-semibold">Recent Activity</CardTitle>
         </CardHeader>
         <CardContent>
           <div className="space-y-4">
@@ -239,9 +239,9 @@ export const ActivityFeed = () => {
   }
 
   return (
-    <Card className="shadow-soft bg-card-gradient border-0">
+    <Card className="shadow-card border">
       <CardHeader>
-        <CardTitle className="flex items-center gap-2">
+        <CardTitle className="flex items-center gap-2 text-lg font-semibold">
           <Clock className="h-5 w-5" />
           Recent Activity
         </CardTitle>

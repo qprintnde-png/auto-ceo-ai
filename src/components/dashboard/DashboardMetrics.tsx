@@ -139,161 +139,149 @@ export const DashboardMetrics = () => {
   }
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
       {/* Portfolio Value */}
-      <Card className="shadow-soft bg-card-gradient border-0">
+      <Card className="shadow-card border">
         <CardContent className="p-6">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium text-muted-foreground">Portfolio Value</p>
-              <p className="text-2xl font-bold">{formatCurrency(metrics.portfolioValue)}</p>
+          <div className="flex items-center justify-between mb-4">
+            <div className="p-3 rounded-lg bg-primary/10">
+              <Building2 className="h-5 w-5 text-primary" />
             </div>
-            <div className="p-3 rounded-full bg-primary/10">
-              <Building2 className="h-6 w-6 text-primary" />
-            </div>
+            <Badge variant="secondary" className="bg-green-50 text-green-700 border-0">
+              <ArrowUpRight className="h-3 w-3 mr-1" />
+              +{metrics.revenueGrowth}%
+            </Badge>
           </div>
-          <div className="flex items-center mt-2 text-sm">
-            <ArrowUpRight className="h-4 w-4 text-green-500 mr-1" />
-            <span className="text-green-500">+{metrics.revenueGrowth}%</span>
-            <span className="text-muted-foreground ml-1">vs last month</span>
+          <div>
+            <p className="text-sm font-medium text-muted-foreground mb-1">Portfolio Value</p>
+            <p className="text-2xl font-bold tracking-tight">{formatCurrency(metrics.portfolioValue)}</p>
+            <p className="text-xs text-muted-foreground mt-1">vs last month</p>
           </div>
         </CardContent>
       </Card>
 
       {/* Total Revenue */}
-      <Card className="shadow-soft bg-card-gradient border-0">
+      <Card className="shadow-card border">
         <CardContent className="p-6">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium text-muted-foreground">Total Revenue</p>
-              <p className="text-2xl font-bold">{formatCurrency(metrics.totalRevenue)}</p>
+          <div className="flex items-center justify-between mb-4">
+            <div className="p-3 rounded-lg bg-accent/10">
+              <DollarSign className="h-5 w-5 text-accent" />
             </div>
-            <div className="p-3 rounded-full bg-primary/10">
-              <DollarSign className="h-6 w-6 text-primary" />
-            </div>
+            <TrendingUp className="h-4 w-4 text-green-600" />
           </div>
-          <div className="flex items-center mt-2 text-sm">
-            <TrendingUp className="h-4 w-4 text-green-500 mr-1" />
-            <span className="text-muted-foreground">Across {metrics.totalCompanies} companies</span>
+          <div>
+            <p className="text-sm font-medium text-muted-foreground mb-1">Total Revenue</p>
+            <p className="text-2xl font-bold tracking-tight">{formatCurrency(metrics.totalRevenue)}</p>
+            <p className="text-xs text-muted-foreground mt-1">{metrics.totalCompanies} {metrics.totalCompanies === 1 ? 'company' : 'companies'}</p>
           </div>
         </CardContent>
       </Card>
 
       {/* Task Completion */}
-      <Card className="shadow-soft bg-card-gradient border-0">
+      <Card className="shadow-card border">
         <CardContent className="p-6">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium text-muted-foreground">Task Completion</p>
-              <p className="text-2xl font-bold">{completionRate}%</p>
+          <div className="flex items-center justify-between mb-4">
+            <div className="p-3 rounded-lg bg-primary/10">
+              <CheckCircle className="h-5 w-5 text-primary" />
             </div>
-            <div className="p-3 rounded-full bg-primary/10">
-              <CheckCircle className="h-6 w-6 text-primary" />
-            </div>
+            <span className="text-2xl font-bold tracking-tight">{completionRate}%</span>
           </div>
-          <div className="mt-2">
+          <div>
+            <p className="text-sm font-medium text-muted-foreground mb-2">Task Completion</p>
             <Progress value={completionRate} className="h-2" />
-            <p className="text-sm text-muted-foreground mt-1">
-              {metrics.completedTasks} of {metrics.totalTasks} tasks completed
+            <p className="text-xs text-muted-foreground mt-2">
+              {metrics.completedTasks} of {metrics.totalTasks} completed
             </p>
           </div>
         </CardContent>
       </Card>
 
       {/* Team Size */}
-      <Card className="shadow-soft bg-card-gradient border-0">
+      <Card className="shadow-card border">
         <CardContent className="p-6">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium text-muted-foreground">Team Members</p>
-              <p className="text-2xl font-bold">{metrics.totalTeamMembers}</p>
-            </div>
-            <div className="p-3 rounded-full bg-primary/10">
-              <Users className="h-6 w-6 text-primary" />
+          <div className="flex items-center justify-between mb-4">
+            <div className="p-3 rounded-lg bg-accent/10">
+              <Users className="h-5 w-5 text-accent" />
             </div>
           </div>
-          <div className="flex items-center mt-2 text-sm">
-            <span className="text-muted-foreground">Across all companies</span>
+          <div>
+            <p className="text-sm font-medium text-muted-foreground mb-1">Team Members</p>
+            <p className="text-2xl font-bold tracking-tight">{metrics.totalTeamMembers}</p>
+            <p className="text-xs text-muted-foreground mt-1">across portfolio</p>
           </div>
         </CardContent>
       </Card>
 
       {/* Investor Matches */}
-      <Card className="shadow-soft bg-card-gradient border-0">
+      <Card className="shadow-card border">
         <CardContent className="p-6">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium text-muted-foreground">Active Investor Matches</p>
-              <p className="text-2xl font-bold">{metrics.activeInvestorMatches}</p>
-            </div>
-            <div className="p-3 rounded-full bg-primary/10">
-              <Target className="h-6 w-6 text-primary" />
+          <div className="flex items-center justify-between mb-4">
+            <div className="p-3 rounded-lg bg-primary/10">
+              <Target className="h-5 w-5 text-primary" />
             </div>
           </div>
-          <div className="flex items-center mt-2 text-sm">
-            <TrendingUp className="h-4 w-4 text-green-500 mr-1" />
-            <span className="text-muted-foreground">Potential investors</span>
+          <div>
+            <p className="text-sm font-medium text-muted-foreground mb-1">Investor Matches</p>
+            <p className="text-2xl font-bold tracking-tight">{metrics.activeInvestorMatches}</p>
+            <p className="text-xs text-muted-foreground mt-1">potential investors</p>
           </div>
         </CardContent>
       </Card>
 
       {/* Burn Rate */}
-      <Card className="shadow-soft bg-card-gradient border-0">
+      <Card className="shadow-card border">
         <CardContent className="p-6">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium text-muted-foreground">Monthly Burn Rate</p>
-              <p className="text-2xl font-bold">{formatCurrency(metrics.burnRate)}</p>
+          <div className="flex items-center justify-between mb-4">
+            <div className="p-3 rounded-lg bg-orange-100">
+              <ArrowDownRight className="h-5 w-5 text-orange-600" />
             </div>
-            <div className="p-3 rounded-full bg-orange-500/10">
-              <ArrowDownRight className="h-6 w-6 text-orange-500" />
-            </div>
+            <Badge variant="secondary" className="bg-orange-50 text-orange-700 border-0">
+              Monthly
+            </Badge>
           </div>
-          <div className="flex items-center mt-2 text-sm">
-            <span className="text-muted-foreground">Monthly spending</span>
+          <div>
+            <p className="text-sm font-medium text-muted-foreground mb-1">Burn Rate</p>
+            <p className="text-2xl font-bold tracking-tight">{formatCurrency(metrics.burnRate)}</p>
+            <p className="text-xs text-muted-foreground mt-1">per month</p>
           </div>
         </CardContent>
       </Card>
 
       {/* Runway */}
-      <Card className="shadow-soft bg-card-gradient border-0">
+      <Card className="shadow-card border">
         <CardContent className="p-6">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium text-muted-foreground">Average Runway</p>
-              <p className="text-2xl font-bold">{Math.round(metrics.runway)} months</p>
+          <div className="flex items-center justify-between mb-4">
+            <div className="p-3 rounded-lg bg-blue-100">
+              <Calendar className="h-5 w-5 text-blue-600" />
             </div>
-            <div className="p-3 rounded-full bg-blue-500/10">
-              <Calendar className="h-6 w-6 text-blue-500" />
-            </div>
-          </div>
-          <div className="flex items-center mt-2 text-sm">
             {metrics.runway < 6 ? (
-              <>
-                <AlertTriangle className="h-4 w-4 text-yellow-500 mr-1" />
-                <span className="text-yellow-500">Low runway</span>
-              </>
+              <AlertTriangle className="h-4 w-4 text-yellow-600" />
             ) : (
-              <span className="text-muted-foreground">Time remaining</span>
+              <CheckCircle className="h-4 w-4 text-green-600" />
             )}
+          </div>
+          <div>
+            <p className="text-sm font-medium text-muted-foreground mb-1">Average Runway</p>
+            <p className="text-2xl font-bold tracking-tight">{Math.round(metrics.runway)} months</p>
+            <p className="text-xs text-muted-foreground mt-1">
+              {metrics.runway < 6 ? 'Low runway' : 'Healthy runway'}
+            </p>
           </div>
         </CardContent>
       </Card>
 
       {/* Companies */}
-      <Card className="shadow-soft bg-card-gradient border-0">
+      <Card className="shadow-card border">
         <CardContent className="p-6">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium text-muted-foreground">Total Companies</p>
-              <p className="text-2xl font-bold">{metrics.totalCompanies}</p>
-            </div>
-            <div className="p-3 rounded-full bg-primary/10">
-              <Building2 className="h-6 w-6 text-primary" />
+          <div className="flex items-center justify-between mb-4">
+            <div className="p-3 rounded-lg bg-primary/10">
+              <Building2 className="h-5 w-5 text-primary" />
             </div>
           </div>
-          <div className="flex items-center mt-2 text-sm">
-            <span className="text-muted-foreground">In your portfolio</span>
+          <div>
+            <p className="text-sm font-medium text-muted-foreground mb-1">Companies</p>
+            <p className="text-2xl font-bold tracking-tight">{metrics.totalCompanies}</p>
+            <p className="text-xs text-muted-foreground mt-1">in your portfolio</p>
           </div>
         </CardContent>
       </Card>

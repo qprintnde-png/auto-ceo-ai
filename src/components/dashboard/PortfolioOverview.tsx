@@ -161,14 +161,14 @@ export const PortfolioOverview = () => {
 
   if (companies.length === 0) {
     return (
-      <Card className="shadow-soft bg-card-gradient border-0">
-        <CardContent className="text-center py-12">
+      <Card className="shadow-card border">
+        <CardContent className="text-center py-16">
           <Building2 className="h-16 w-16 text-muted-foreground mx-auto mb-4" />
           <h3 className="text-xl font-semibold mb-2">No Companies Yet</h3>
           <p className="text-muted-foreground mb-6">
             Start building your portfolio by creating your first company
           </p>
-          <Button className="bg-primary-gradient">
+          <Button className="bg-primary hover:bg-primary/90">
             <Plus className="h-4 w-4 mr-2" />
             Create Company
           </Button>
@@ -179,14 +179,14 @@ export const PortfolioOverview = () => {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between mb-6">
         <div>
-          <h2 className="text-2xl font-bold">Your Portfolio</h2>
-          <p className="text-muted-foreground">
+          <h2 className="text-xl font-semibold">Your Portfolio</h2>
+          <p className="text-sm text-muted-foreground">
             Managing {companies.length} {companies.length === 1 ? 'company' : 'companies'}
           </p>
         </div>
-        <Button className="bg-primary-gradient">
+        <Button className="bg-primary hover:bg-primary/90">
           <Plus className="h-4 w-4 mr-2" />
           Add Company
         </Button>
@@ -202,8 +202,8 @@ export const PortfolioOverview = () => {
             : 0;
 
           return (
-            <Card key={company.id} className="shadow-soft bg-card-gradient border-0 hover:shadow-feature transition-all duration-300">
-              <CardHeader className="pb-3">
+            <Card key={company.id} className="shadow-card border hover:shadow-feature transition-all duration-300">
+              <CardHeader className="pb-4">
                 <div className="flex items-start justify-between">
                   <div className="flex-1">
                     <CardTitle className="text-xl mb-1">{company.name}</CardTitle>
@@ -294,7 +294,7 @@ export const PortfolioOverview = () => {
                     </Button>
                   </Link>
                   <Link to={`/financial?company=${company.id}`} className="flex-1">
-                    <Button variant="default" size="sm" className="w-full bg-primary-gradient">
+                    <Button variant="default" size="sm" className="w-full bg-primary hover:bg-primary/90">
                       <DollarSign className="h-3 w-3 mr-1" />
                       Financials
                     </Button>

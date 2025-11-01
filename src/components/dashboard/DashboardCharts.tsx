@@ -36,9 +36,9 @@ export const DashboardCharts = () => {
   return (
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
       {/* Revenue Trend */}
-      <Card className="shadow-soft bg-card-gradient border-0">
+      <Card className="shadow-card border">
         <CardHeader>
-          <CardTitle>Revenue Trend</CardTitle>
+          <CardTitle className="text-lg font-semibold">Revenue Trend</CardTitle>
         </CardHeader>
         <CardContent>
           <ResponsiveContainer width="100%" height={300}>
@@ -76,9 +76,9 @@ export const DashboardCharts = () => {
       </Card>
 
       {/* Task Completion */}
-      <Card className="shadow-soft bg-card-gradient border-0">
+      <Card className="shadow-card border">
         <CardHeader>
-          <CardTitle>Task Completion Trend</CardTitle>
+          <CardTitle className="text-lg font-semibold">Task Completion Trend</CardTitle>
         </CardHeader>
         <CardContent>
           <ResponsiveContainer width="100%" height={300}>
@@ -101,9 +101,9 @@ export const DashboardCharts = () => {
       </Card>
 
       {/* Portfolio Distribution */}
-      <Card className="shadow-soft bg-card-gradient border-0">
+      <Card className="shadow-card border">
         <CardHeader>
-          <CardTitle>Portfolio Distribution</CardTitle>
+          <CardTitle className="text-lg font-semibold">Portfolio Distribution</CardTitle>
         </CardHeader>
         <CardContent>
           <ResponsiveContainer width="100%" height={300}>
@@ -128,9 +128,9 @@ export const DashboardCharts = () => {
       </Card>
 
       {/* Performance Metrics */}
-      <Card className="shadow-soft bg-card-gradient border-0">
+      <Card className="shadow-card border">
         <CardHeader>
-          <CardTitle>Performance vs Targets</CardTitle>
+          <CardTitle className="text-lg font-semibold">Performance vs Targets</CardTitle>
         </CardHeader>
         <CardContent>
           <ResponsiveContainer width="100%" height={300}>

@@ -104,9 +104,9 @@ export const AIInsights = () => {
   };
 
   return (
-    <Card className="shadow-soft bg-card-gradient border-0">
+    <Card className="shadow-card border">
       <CardHeader>
-        <CardTitle className="flex items-center gap-2">
+        <CardTitle className="flex items-center gap-2 text-lg font-semibold">
           <Brain className="h-5 w-5" />
           AI-Powered Insights
         </CardTitle>

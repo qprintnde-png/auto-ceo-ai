@@ -19,55 +19,59 @@ const Dashboard = () => {
   };
 
   return (
-    <div className="min-h-screen bg-subtle-gradient">
-      {/* Header */}
-      <header className="border-b bg-card/50 backdrop-blur-sm">
-        <div className="container mx-auto px-4 py-4 flex items-center justify-between">
-          <div>
-            <h1 className="text-2xl font-bold bg-primary-gradient bg-clip-text text-transparent">
-              Auto-CEO Dashboard
-            </h1>
-            <p className="text-sm text-muted-foreground">
-              Welcome back, {user?.user_metadata?.first_name || user?.email}
-            </p>
-          </div>
-          
-          <div className="flex items-center gap-4">
-            <Badge variant="secondary" className="capitalize">
-              {user?.user_metadata?.role || 'founder'}
-            </Badge>
-            <Button variant="outline" size="sm">
-              <Settings className="h-4 w-4 mr-2" />
-              Settings
-            </Button>
-            <Button variant="outline" size="sm" onClick={handleSignOut}>
-              <LogOut className="h-4 w-4 mr-2" />
-              Sign Out
-            </Button>
+    <div className="min-h-screen bg-background">
+      {/* Executive Header */}
+      <div className="bg-executive-gradient text-primary-foreground border-b">
+        <div className="container mx-auto px-6 py-8">
+          <div className="flex items-center justify-between">
+            <div>
+              <h1 className="text-3xl font-bold tracking-tight mb-2">
+                Executive Dashboard
+              </h1>
+              <p className="text-primary-foreground/80 text-sm">
+                Welcome back, {user?.user_metadata?.first_name || user?.email} • {new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })}
+              </p>
+            </div>
+            
+            <div className="flex items-center gap-3">
+              <Badge variant="secondary" className="capitalize bg-white/20 text-white border-0 px-4 py-1.5">
+                {user?.user_metadata?.role || 'founder'}
+              </Badge>
+              <Link to="/settings">
+                <Button variant="ghost" size="sm" className="text-primary-foreground hover:bg-white/10">
+                  <Settings className="h-4 w-4 mr-2" />
+                  Settings
+                </Button>
+              </Link>
+              <Button variant="ghost" size="sm" onClick={handleSignOut} className="text-primary-foreground hover:bg-white/10">
+                <LogOut className="h-4 w-4 mr-2" />
+                Sign Out
+              </Button>
+            </div>
           </div>
         </div>
-      </header>
+      </div>
 
-      <main className="container mx-auto px-4 py-8">
+      <main className="container mx-auto px-6 py-8">
         <Tabs defaultValue="portfolio" className="w-full">
-          <TabsList className="mb-6">
-            <TabsTrigger value="portfolio" className="flex items-center gap-2">
+          <TabsList className="mb-8 bg-muted/50 p-1">
+            <TabsTrigger value="portfolio" className="flex items-center gap-2 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
               <Briefcase className="h-4 w-4" />
               Portfolio
             </TabsTrigger>
-            <TabsTrigger value="overview" className="flex items-center gap-2">
+            <TabsTrigger value="overview" className="flex items-center gap-2 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
               <BarChart3 className="h-4 w-4" />
               Overview
             </TabsTrigger>
-            <TabsTrigger value="analytics" className="flex items-center gap-2">
+            <TabsTrigger value="analytics" className="flex items-center gap-2 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
               <TrendingUp className="h-4 w-4" />
               Analytics
             </TabsTrigger>
-            <TabsTrigger value="insights" className="flex items-center gap-2">
+            <TabsTrigger value="insights" className="flex items-center gap-2 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
               <Brain className="h-4 w-4" />
               AI Insights
             </TabsTrigger>
-            <TabsTrigger value="activity" className="flex items-center gap-2">
+            <TabsTrigger value="activity" className="flex items-center gap-2 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
               <Activity className="h-4 w-4" />
               Activity
             </TabsTrigger>
@@ -77,140 +81,140 @@ const Dashboard = () => {
             <PortfolioOverview />
           </TabsContent>
 
-          <TabsContent value="overview" className="space-y-8">
+          <TabsContent value="overview" className="space-y-6">
             {/* Key Metrics */}
             <DashboardMetrics />
 
             {/* Quick Actions */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              <Card className="shadow-soft bg-card-gradient border-0 hover:shadow-feature transition-all duration-300">
-                <CardHeader className="pb-3">
-                  <div className="flex items-center justify-between">
-                    <CardTitle className="text-lg">Create Business Plan</CardTitle>
-                    <Target className="h-5 w-5 text-primary" />
-                  </div>
-                </CardHeader>
-                <CardContent>
-                  <CardDescription className="mb-4">
-                    Generate an AI-powered business plan for your startup idea
-                  </CardDescription>
-                  <Link to="/business-plan">
-                    <Button className="w-full bg-primary-gradient hover:opacity-90">
-                      <Plus className="h-4 w-4 mr-2" />
-                      New Business Plan
-                    </Button>
-                  </Link>
-                </CardContent>
-              </Card>
+            <div>
+              <h3 className="text-lg font-semibold mb-4">Quick Actions</h3>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <Card className="shadow-card hover:shadow-feature transition-all duration-300 border">
+                  <CardHeader className="pb-4">
+                    <div className="flex items-center gap-3 mb-2">
+                      <div className="p-2.5 rounded-lg bg-primary/10">
+                        <Target className="h-5 w-5 text-primary" />
+                      </div>
+                      <CardTitle className="text-base">Business Plan</CardTitle>
+                    </div>
+                  </CardHeader>
+                  <CardContent>
+                    <CardDescription className="mb-4 text-sm">
+                      Generate an AI-powered business plan for your startup
+                    </CardDescription>
+                    <Link to="/business-plan">
+                      <Button className="w-full bg-primary hover:bg-primary/90">
+                        <Plus className="h-4 w-4 mr-2" />
+                        Create Plan
+                      </Button>
+                    </Link>
+                  </CardContent>
+                </Card>
 
-              <Card className="shadow-soft bg-card-gradient border-0 hover:shadow-feature transition-all duration-300">
-                <CardHeader className="pb-3">
-                  <div className="flex items-center justify-between">
-                    <CardTitle className="text-lg">Team Management</CardTitle>
-                    <Users className="h-5 w-5 text-primary" />
-                  </div>
-                </CardHeader>
-                <CardContent>
-                  <CardDescription className="mb-4">
-                    Find and hire talented freelancers and team members
-                  </CardDescription>
-                  <Link to="/team">
-                    <Button className="w-full bg-primary-gradient hover:opacity-90">
-                      <Users className="h-4 w-4 mr-2" />
-                      Hire Talent
-                    </Button>
-                  </Link>
-                </CardContent>
-              </Card>
+                <Card className="shadow-card hover:shadow-feature transition-all duration-300 border">
+                  <CardHeader className="pb-4">
+                    <div className="flex items-center gap-3 mb-2">
+                      <div className="p-2.5 rounded-lg bg-accent/10">
+                        <Users className="h-5 w-5 text-accent" />
+                      </div>
+                      <CardTitle className="text-base">Team</CardTitle>
+                    </div>
+                  </CardHeader>
+                  <CardContent>
+                    <CardDescription className="mb-4 text-sm">
+                      Find and hire talented professionals for your team
+                    </CardDescription>
+                    <Link to="/team">
+                      <Button className="w-full" variant="outline">
+                        <Users className="h-4 w-4 mr-2" />
+                        Hire Talent
+                      </Button>
+                    </Link>
+                  </CardContent>
+                </Card>
 
-              <Card className="shadow-soft bg-card-gradient border-0 hover:shadow-feature transition-all duration-300">
-                <CardHeader className="pb-3">
-                  <div className="flex items-center justify-between">
-                    <CardTitle className="text-lg">AI Insights</CardTitle>
-                    <Brain className="h-5 w-5 text-primary" />
-                  </div>
-                </CardHeader>
-                <CardContent>
-                  <CardDescription className="mb-4">
-                    Get AI-powered recommendations and business insights
-                  </CardDescription>
-                  <Button className="w-full" variant="outline">
-                    <Brain className="h-4 w-4 mr-2" />
-                    View Insights
-                  </Button>
-                </CardContent>
-              </Card>
+                <Card className="shadow-card hover:shadow-feature transition-all duration-300 border">
+                  <CardHeader className="pb-4">
+                    <div className="flex items-center gap-3 mb-2">
+                      <div className="p-2.5 rounded-lg bg-primary/10">
+                        <Brain className="h-5 w-5 text-primary" />
+                      </div>
+                      <CardTitle className="text-base">AI Insights</CardTitle>
+                    </div>
+                  </CardHeader>
+                  <CardContent>
+                    <CardDescription className="mb-4 text-sm">
+                      Get AI-powered recommendations and insights
+                    </CardDescription>
+                    <Button className="w-full" variant="outline">
+                      <Brain className="h-4 w-4 mr-2" />
+                      View Insights
+                    </Button>
+                  </CardContent>
+                </Card>
+              </div>
             </div>
 
             {/* Secondary Features */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-              <Card className="shadow-soft bg-card-gradient border-0 hover:shadow-feature transition-all duration-300">
-                <CardHeader className="pb-3">
-                  <div className="flex items-center justify-between">
-                    <CardTitle className="text-sm">Task Management</CardTitle>
-                    <BarChart3 className="h-4 w-4 text-primary" />
-                  </div>
-                </CardHeader>
-                <CardContent>
-                  <Link to="/tasks">
-                    <Button size="sm" variant="outline" className="w-full">
-                      <Plus className="h-3 w-3 mr-1" />
-                      Manage Tasks
-                    </Button>
-                  </Link>
-                </CardContent>
-              </Card>
+            <div>
+              <h3 className="text-lg font-semibold mb-4">Management Tools</h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                <Link to="/tasks">
+                  <Card className="shadow-card hover:shadow-feature transition-all duration-300 cursor-pointer border h-full">
+                    <CardContent className="p-6">
+                      <div className="flex items-center gap-3 mb-2">
+                        <div className="p-2 rounded-lg bg-primary/10">
+                          <BarChart3 className="h-4 w-4 text-primary" />
+                        </div>
+                        <CardTitle className="text-sm">Tasks</CardTitle>
+                      </div>
+                      <p className="text-xs text-muted-foreground">Manage workflows</p>
+                    </CardContent>
+                  </Card>
+                </Link>
 
-              <Card className="shadow-soft bg-card-gradient border-0 hover:shadow-feature transition-all duration-300">
-                <CardHeader className="pb-3">
-                  <div className="flex items-center justify-between">
-                    <CardTitle className="text-sm">Financial Planning</CardTitle>
-                    <TrendingUp className="h-4 w-4 text-primary" />
-                  </div>
-                </CardHeader>
-                <CardContent>
-                  <Link to="/financial">
-                    <Button size="sm" variant="outline" className="w-full">
-                      <TrendingUp className="h-3 w-3 mr-1" />
-                      View Financials
-                    </Button>
-                  </Link>
-                </CardContent>
-              </Card>
+                <Link to="/financial">
+                  <Card className="shadow-card hover:shadow-feature transition-all duration-300 cursor-pointer border h-full">
+                    <CardContent className="p-6">
+                      <div className="flex items-center gap-3 mb-2">
+                        <div className="p-2 rounded-lg bg-accent/10">
+                          <TrendingUp className="h-4 w-4 text-accent" />
+                        </div>
+                        <CardTitle className="text-sm">Financials</CardTitle>
+                      </div>
+                      <p className="text-xs text-muted-foreground">Track revenue</p>
+                    </CardContent>
+                  </Card>
+                </Link>
 
-              <Card className="shadow-soft bg-card-gradient border-0 hover:shadow-feature transition-all duration-300">
-                <CardHeader className="pb-3">
-                  <div className="flex items-center justify-between">
-                    <CardTitle className="text-sm">Find Investors</CardTitle>
-                    <Users className="h-4 w-4 text-primary" />
-                  </div>
-                </CardHeader>
-                <CardContent>
-                  <Link to="/investors">
-                    <Button size="sm" variant="outline" className="w-full">
-                      <Users className="h-3 w-3 mr-1" />
-                      Match Investors
-                    </Button>
-                  </Link>
-                </CardContent>
-              </Card>
+                <Link to="/investors">
+                  <Card className="shadow-card hover:shadow-feature transition-all duration-300 cursor-pointer border h-full">
+                    <CardContent className="p-6">
+                      <div className="flex items-center gap-3 mb-2">
+                        <div className="p-2 rounded-lg bg-primary/10">
+                          <Target className="h-4 w-4 text-primary" />
+                        </div>
+                        <CardTitle className="text-sm">Investors</CardTitle>
+                      </div>
+                      <p className="text-xs text-muted-foreground">Match funding</p>
+                    </CardContent>
+                  </Card>
+                </Link>
 
-              <Card className="shadow-soft bg-card-gradient border-0 hover:shadow-feature transition-all duration-300">
-                <CardHeader className="pb-3">
-                  <div className="flex items-center justify-between">
-                    <CardTitle className="text-sm">Team Management</CardTitle>
-                    <Users className="h-4 w-4 text-primary" />
-                  </div>
-                </CardHeader>
-                <CardContent>
-                  <Link to="/team">
-                    <Button size="sm" variant="outline" className="w-full">
-                      <Users className="h-3 w-3 mr-1" />
-                      Hire Talent
-                    </Button>
-                  </Link>
-                </CardContent>
-              </Card>
+                <Link to="/team">
+                  <Card className="shadow-card hover:shadow-feature transition-all duration-300 cursor-pointer border h-full">
+                    <CardContent className="p-6">
+                      <div className="flex items-center gap-3 mb-2">
+                        <div className="p-2 rounded-lg bg-accent/10">
+                          <Users className="h-4 w-4 text-accent" />
+                        </div>
+                        <CardTitle className="text-sm">Hiring</CardTitle>
+                      </div>
+                      <p className="text-xs text-muted-foreground">Build team</p>
+                    </CardContent>
+                  </Card>
+                </Link>
+              </div>
             </div>
           </TabsContent>
 

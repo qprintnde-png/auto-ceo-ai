@@ -48,16 +48,20 @@ export const TaskCard = ({ task, onEdit, onDelete, onStatusChange }: TaskCardPro
   const isOverdue = task.due_date && new Date(task.due_date) < new Date() && task.status !== 'completed';
 
   return (
-    <Card className="shadow-soft bg-card-gradient border-0 hover:shadow-feature transition-all duration-300">
-      <CardHeader className="pb-3">
-        <div className="flex items-start justify-between">
-          <div className="flex items-center gap-2">
-            <StatusIcon className="h-4 w-4" />
-            <CardTitle className="text-lg">{task.title}</CardTitle>
+    <Card className="shadow-card border hover:shadow-feature transition-all duration-300">
+      <CardHeader className="pb-4">
+        <div className="flex items-start justify-between gap-3 mb-3">
+          <div className="flex-1">
+            <div className="flex items-center gap-2 mb-2">
+              <div className={`p-1.5 rounded ${statusInfo.color}`}>
+                <StatusIcon className="h-3.5 w-3.5" />
+              </div>
+              <CardTitle className="text-base font-semibold leading-tight">{task.title}</CardTitle>
+            </div>
           </div>
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="sm">
+              <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
                 <MoreHorizontal className="h-4 w-4" />
               </Button>
             </DropdownMenuTrigger>
@@ -79,51 +83,62 @@ export const TaskCard = ({ task, onEdit, onDelete, onStatusChange }: TaskCardPro
         </div>
         
         <div className="flex items-center gap-2 flex-wrap">
-          <Badge className={statusInfo.color}>
-            {statusInfo.label}
-          </Badge>
-          <Badge className={priorityInfo.color}>
+          <Badge variant="secondary" className={`${priorityInfo.color} text-xs`}>
             {priorityInfo.label}
           </Badge>
           {task.category && (
-            <Badge variant="outline">{task.category}</Badge>
+            <Badge variant="outline" className="text-xs">{task.category}</Badge>
           )}
         </div>
       </CardHeader>
 
-      <CardContent>
+      <CardContent className="space-y-3">
         {task.description && (
-          <CardDescription className="mb-4">
+          <p className="text-sm text-muted-foreground line-clamp-2">
             {task.description}
-          </CardDescription>
+          </p>
         )}
 
-        <div className="space-y-2 text-sm text-muted-foreground">
+        <div className="space-y-2">
           {task.due_date && (
-            <div className={`flex items-center gap-2 ${isOverdue ? 'text-destructive' : ''}`}>
-              <Calendar className="h-4 w-4" />
+            <div className={`flex items-center gap-2 text-sm ${isOverdue ? 'text-destructive font-medium' : 'text-muted-foreground'}`}>
+              <Calendar className="h-3.5 w-3.5" />
               <span>Due: {format(new Date(task.due_date), 'MMM dd, yyyy')}</span>
-              {isOverdue && <span className="text-xs">(Overdue)</span>}
+              {isOverdue && (
+                <Badge variant="destructive" className="text-xs py-0 px-1.5">Overdue</Badge>
+              )}
             </div>
           )}
           
           {task.estimated_hours && (
-            <div className="flex items-center gap-2">
-              <Clock className="h-4 w-4" />
+            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+              <Clock className="h-3.5 w-3.5" />
               <span>
-                Estimated: {task.estimated_hours}h
-                {task.actual_hours && ` / Actual: ${task.actual_hours}h`}
+                Est: {task.estimated_hours}h
+                {task.actual_hours && ` • Act: ${task.actual_hours}h`}
               </span>
             </div>
           )}
 
           {task.assigned_to && (
-            <div className="flex items-center gap-2">
-              <User className="h-4 w-4" />
-              <span>Assigned to: {task.assigned_to}</span>
+            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+              <User className="h-3.5 w-3.5" />
+              <span>{task.assigned_to}</span>
             </div>
           )}
         </div>
+        
+        {task.status !== 'completed' && (
+          <Button 
+            size="sm" 
+            variant="outline" 
+            className="w-full mt-2"
+            onClick={() => onStatusChange?.(task.id, 'completed')}
+          >
+            <CheckCircle2 className="h-3.5 w-3.5 mr-1" />
+            Mark Complete
+          </Button>
+        )}
       </CardContent>
     </Card>
   );

@@ -238,7 +238,7 @@ export const TaskDashboard = () => {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-subtle-gradient flex items-center justify-center">
+      <div className="min-h-screen bg-background flex items-center justify-center">
         <div className="text-center">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
           <p className="text-muted-foreground">Loading tasks...</p>
@@ -249,7 +249,7 @@ export const TaskDashboard = () => {
 
   if (companies.length === 0) {
     return (
-      <div className="min-h-screen bg-subtle-gradient flex items-center justify-center">
+      <div className="min-h-screen bg-background flex items-center justify-center">
         <div className="text-center">
           <h2 className="text-2xl font-bold mb-4">No Company Found</h2>
           <p className="text-muted-foreground">You need to create a company first to manage tasks.</p>
@@ -259,26 +259,26 @@ export const TaskDashboard = () => {
   }
 
   return (
-    <div className="min-h-screen bg-subtle-gradient">
-      {/* Header */}
-      <header className="border-b bg-card/50 backdrop-blur-sm">
-        <div className="container mx-auto px-4 py-4">
+    <div className="min-h-screen bg-background">
+      {/* Professional Header */}
+      <div className="bg-executive-gradient text-primary-foreground border-b">
+        <div className="container mx-auto px-6 py-8">
           <div className="flex items-center justify-between">
             <div>
-              <h1 className="text-3xl font-bold bg-primary-gradient bg-clip-text text-transparent">
+              <h1 className="text-3xl font-bold tracking-tight mb-2">
                 Task Management
               </h1>
-              <p className="text-muted-foreground">
-                Organize and track your project tasks
+              <p className="text-primary-foreground/80 text-sm">
+                Organize and track your project tasks efficiently
               </p>
             </div>
             
-            <div className="flex gap-2">
+            <div className="flex gap-3">
               <Button 
-                variant="outline"
+                variant="ghost"
                 onClick={handleGetAISuggestions}
                 disabled={isSuggestingTasks}
-                className="border-primary/20 hover:border-primary/40"
+                className="text-primary-foreground hover:bg-white/10"
               >
                 {isSuggestingTasks ? (
                   <Loader2 className="h-4 w-4 mr-2 animate-spin" />
@@ -290,7 +290,7 @@ export const TaskDashboard = () => {
               
               <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
                 <DialogTrigger asChild>
-                  <Button className="bg-primary-gradient">
+                  <Button className="bg-white text-primary hover:bg-white/90">
                     <Plus className="h-4 w-4 mr-2" />
                     New Task
                   </Button>
@@ -309,59 +309,81 @@ export const TaskDashboard = () => {
             </div>
           </div>
         </div>
-      </header>
+      </div>
 
-      <main className="container mx-auto px-4 py-8">
+      <main className="container mx-auto px-6 py-8">
         {/* Stats Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-          <Card className="shadow-soft bg-card-gradient border-0">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Total Tasks</CardTitle>
-              <Calendar className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{totalTasks}</div>
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
+          <Card className="shadow-card border">
+            <CardContent className="p-6">
+              <div className="flex items-center justify-between mb-4">
+                <div className="p-3 rounded-lg bg-primary/10">
+                  <Calendar className="h-5 w-5 text-primary" />
+                </div>
+              </div>
+              <div>
+                <p className="text-sm font-medium text-muted-foreground mb-1">Total Tasks</p>
+                <p className="text-2xl font-bold tracking-tight">{totalTasks}</p>
+              </div>
             </CardContent>
           </Card>
 
-          <Card className="shadow-soft bg-card-gradient border-0">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Completed</CardTitle>
-              <CheckCircle2 className="h-4 w-4 text-green-500" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold text-green-500">{completedTasks}</div>
-              <p className="text-xs text-muted-foreground">
-                {totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 0}% complete
-              </p>
+          <Card className="shadow-card border">
+            <CardContent className="p-6">
+              <div className="flex items-center justify-between mb-4">
+                <div className="p-3 rounded-lg bg-green-100">
+                  <CheckCircle2 className="h-5 w-5 text-green-600" />
+                </div>
+                <Badge variant="secondary" className="bg-green-50 text-green-700 border-0">
+                  {totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 0}%
+                </Badge>
+              </div>
+              <div>
+                <p className="text-sm font-medium text-muted-foreground mb-1">Completed</p>
+                <p className="text-2xl font-bold tracking-tight text-green-600">{completedTasks}</p>
+              </div>
             </CardContent>
           </Card>
 
-          <Card className="shadow-soft bg-card-gradient border-0">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">In Progress</CardTitle>
-              <Clock className="h-4 w-4 text-blue-500" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold text-blue-500">{inProgressTasks}</div>
+          <Card className="shadow-card border">
+            <CardContent className="p-6">
+              <div className="flex items-center justify-between mb-4">
+                <div className="p-3 rounded-lg bg-blue-100">
+                  <Clock className="h-5 w-5 text-blue-600" />
+                </div>
+              </div>
+              <div>
+                <p className="text-sm font-medium text-muted-foreground mb-1">In Progress</p>
+                <p className="text-2xl font-bold tracking-tight text-blue-600">{inProgressTasks}</p>
+              </div>
             </CardContent>
           </Card>
 
-          <Card className="shadow-soft bg-card-gradient border-0">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Overdue</CardTitle>
-              <AlertTriangle className="h-4 w-4 text-red-500" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold text-red-500">{overdueTasks}</div>
+          <Card className="shadow-card border">
+            <CardContent className="p-6">
+              <div className="flex items-center justify-between mb-4">
+                <div className="p-3 rounded-lg bg-red-100">
+                  <AlertTriangle className="h-5 w-5 text-red-600" />
+                </div>
+                {overdueTasks > 0 && (
+                  <Badge variant="secondary" className="bg-red-50 text-red-700 border-0">
+                    Attention
+                  </Badge>
+                )}
+              </div>
+              <div>
+                <p className="text-sm font-medium text-muted-foreground mb-1">Overdue</p>
+                <p className="text-2xl font-bold tracking-tight text-red-600">{overdueTasks}</p>
+              </div>
             </CardContent>
           </Card>
         </div>
 
         {/* Filters */}
-        <Card className="shadow-soft bg-card-gradient border-0 mb-6">
+        <Card className="shadow-card border mb-6">
           <CardHeader>
-            <CardTitle>Filter Tasks</CardTitle>
+            <CardTitle className="text-lg font-semibold">Filter & Search</CardTitle>
+            <CardDescription>Refine your task list with filters and search</CardDescription>
           </CardHeader>
           <CardContent>
             <TaskFilters
@@ -382,12 +404,19 @@ export const TaskDashboard = () => {
 
         {/* AI Suggestions */}
         {showSuggestions && taskSuggestions.length > 0 && (
-          <Card className="shadow-soft bg-card-gradient border-0 mb-6">
+          <Card className="shadow-card border border-primary/20 mb-6">
             <CardHeader>
               <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <Sparkles className="h-5 w-5 text-primary" />
-                  <CardTitle>AI Task Suggestions</CardTitle>
+                <div className="flex items-center gap-3">
+                  <div className="p-2 rounded-lg bg-primary/10">
+                    <Sparkles className="h-5 w-5 text-primary" />
+                  </div>
+                  <div>
+                    <CardTitle className="text-lg font-semibold">AI Task Suggestions</CardTitle>
+                    <CardDescription>
+                      AI-generated recommendations based on your company profile
+                    </CardDescription>
+                  </div>
                 </div>
                 <Button 
                   variant="ghost" 
@@ -397,23 +426,20 @@ export const TaskDashboard = () => {
                   Dismiss
                 </Button>
               </div>
-              <CardDescription>
-                AI-generated task suggestions based on your company profile
-              </CardDescription>
             </CardHeader>
             <CardContent>
               <div className="space-y-3">
                 {taskSuggestions.map((suggestion, index) => (
-                  <Alert key={index} className="border-primary/20">
+                  <div key={index} className="p-4 rounded-lg border bg-muted/30 hover:bg-muted/50 transition-colors">
                     <div className="flex items-start justify-between gap-4">
                       <div className="flex-1">
                         <h4 className="font-semibold mb-1">{suggestion.title}</h4>
-                        <p className="text-sm text-muted-foreground mb-2">
+                        <p className="text-sm text-muted-foreground mb-3">
                           {suggestion.description}
                         </p>
                         <div className="flex gap-2">
                           <Badge variant="outline" className="capitalize">
-                            {suggestion.priority}
+                            Priority: {suggestion.priority}
                           </Badge>
                           <Badge variant="secondary">
                             {suggestion.category}
@@ -423,13 +449,13 @@ export const TaskDashboard = () => {
                       <Button 
                         size="sm"
                         onClick={() => handleAcceptSuggestion(suggestion)}
-                        className="bg-primary-gradient shrink-0"
+                        className="bg-primary hover:bg-primary/90 shrink-0"
                       >
                         <Plus className="h-3 w-3 mr-1" />
                         Add Task
                       </Button>
                     </div>
-                  </Alert>
+                  </div>
                 ))}
               </div>
             </CardContent>
@@ -437,42 +463,50 @@ export const TaskDashboard = () => {
         )}
 
         {/* Tasks Grid */}
-        {filteredTasks.length === 0 ? (
-          <Card className="shadow-soft bg-card-gradient border-0">
-            <CardContent className="text-center py-12">
-              <Calendar className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-              <h3 className="text-lg font-semibold mb-2">
-                {tasks.length === 0 ? 'No tasks yet' : 'No tasks match your filters'}
-              </h3>
-              <p className="text-muted-foreground mb-4">
-                {tasks.length === 0 
-                  ? 'Create your first task to get started with project management'
-                  : 'Try adjusting your filters to see more tasks'
-                }
-              </p>
-              {tasks.length === 0 && (
-                <Button 
-                  onClick={() => setIsDialogOpen(true)}
-                  className="bg-primary-gradient"
-                >
-                  <Plus className="h-4 w-4 mr-2" />
-                  Create First Task
-                </Button>
-              )}
-            </CardContent>
-          </Card>
-        ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {filteredTasks.map((task) => (
-              <TaskCard
-                key={task.id}
-                task={task}
-                onStatusChange={handleStatusChange}
-                onDelete={handleDeleteTask}
-              />
-            ))}
+        <div>
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-xl font-semibold">
+              {hasActiveFilters ? `Filtered Tasks (${filteredTasks.length})` : `All Tasks (${totalTasks})`}
+            </h2>
           </div>
-        )}
+          
+          {filteredTasks.length === 0 ? (
+            <Card className="shadow-card border">
+              <CardContent className="text-center py-16">
+                <Calendar className="h-16 w-16 text-muted-foreground mx-auto mb-4" />
+                <h3 className="text-xl font-semibold mb-2">
+                  {tasks.length === 0 ? 'No tasks yet' : 'No tasks match your filters'}
+                </h3>
+                <p className="text-muted-foreground mb-6">
+                  {tasks.length === 0 
+                    ? 'Create your first task to get started with project management'
+                    : 'Try adjusting your filters to see more tasks'
+                  }
+                </p>
+                {tasks.length === 0 && (
+                  <Button 
+                    onClick={() => setIsDialogOpen(true)}
+                    className="bg-primary hover:bg-primary/90"
+                  >
+                    <Plus className="h-4 w-4 mr-2" />
+                    Create First Task
+                  </Button>
+                )}
+              </CardContent>
+            </Card>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {filteredTasks.map((task) => (
+                <TaskCard
+                  key={task.id}
+                  task={task}
+                  onStatusChange={handleStatusChange}
+                  onDelete={handleDeleteTask}
+                />
+              ))}
+            </div>
+          )}
+        </div>
       </main>
     </div>
   );

@@ -18,6 +18,22 @@ interface BusinessIdeaInput {
   fundingGoal?: number;
   timeframe?: string;
   additionalContext?: string;
+  marketSize?: string;
+  competitors?: string;
+  competitiveAdvantage?: string;
+  foundersBackground?: string;
+  teamSize?: string;
+  keyHires?: string;
+  productStage?: string;
+  features?: string;
+  pricingStrategy?: string;
+  customerAcquisition?: string;
+  marketingChannels?: string;
+  salesStrategy?: string;
+  revenueModel?: string;
+  monthlyRevenue?: string;
+  burnRate?: string;
+  breakEven?: string;
 }
 
 interface BusinessPlanSections {
@@ -157,6 +173,10 @@ async function generateBusinessPlanSections(
     Solution: ${businessIdea.solution}
     USP: ${businessIdea.uniqueSellingProposition}
     Funding Goal: ${businessIdea.fundingGoal ? `$${businessIdea.fundingGoal.toLocaleString()}` : 'TBD'}
+    ${businessIdea.marketSize ? `Market Size: ${businessIdea.marketSize}` : ''}
+    ${businessIdea.productStage ? `Product Stage: ${businessIdea.productStage}` : ''}
+    ${businessIdea.foundersBackground ? `Team Background: ${businessIdea.foundersBackground}` : ''}
+    ${businessIdea.monthlyRevenue ? `Monthly Revenue: $${businessIdea.monthlyRevenue}` : ''}
     
     The executive summary should be 300-500 words and include: company overview, market opportunity, competitive advantage, financial highlights, and funding requirements.`
   );
@@ -164,6 +184,10 @@ async function generateBusinessPlanSections(
   // Generate Market Analysis
   const marketAnalysis = await generateSection('Market Analysis',
     `Conduct a comprehensive market analysis for ${businessIdea.companyName} in the ${businessIdea.industry} industry targeting ${businessIdea.targetMarket}.
+    
+    ${businessIdea.marketSize ? `Market Size Information: ${businessIdea.marketSize}` : ''}
+    ${businessIdea.customerAcquisition ? `Customer Acquisition Strategy: ${businessIdea.customerAcquisition}` : ''}
+    ${businessIdea.marketingChannels ? `Marketing Channels: ${businessIdea.marketingChannels}` : ''}
     
     Include:
     1. Market size and growth projections
@@ -182,6 +206,8 @@ async function generateBusinessPlanSections(
     
     Business Model: ${businessIdea.businessModel}
     Unique Selling Proposition: ${businessIdea.uniqueSellingProposition}
+    ${businessIdea.competitors ? `Known Competitors: ${businessIdea.competitors}` : ''}
+    ${businessIdea.competitiveAdvantage ? `Our Competitive Advantages: ${businessIdea.competitiveAdvantage}` : ''}
     
     Include:
     1. Direct and indirect competitors
@@ -220,6 +246,10 @@ async function generateBusinessPlanSections(
     Industry: ${businessIdea.industry}
     Business Model: ${businessIdea.businessModel}
     Solution: ${businessIdea.solution}
+    ${businessIdea.productStage ? `Product Stage: ${businessIdea.productStage}` : ''}
+    ${businessIdea.teamSize ? `Current Team Size: ${businessIdea.teamSize}` : ''}
+    ${businessIdea.keyHires ? `Key Hires Needed: ${businessIdea.keyHires}` : ''}
+    ${businessIdea.foundersBackground ? `Team Background: ${businessIdea.foundersBackground}` : ''}
     
     Include:
     1. Operational workflow and processes
@@ -241,6 +271,11 @@ async function generateBusinessPlanSections(
     Business Model: ${businessIdea.businessModel}
     Target Market: ${businessIdea.targetMarket}
     Funding Goal: ${businessIdea.fundingGoal ? `$${businessIdea.fundingGoal.toLocaleString()}` : 'TBD'}
+    ${businessIdea.revenueModel ? `Revenue Model: ${businessIdea.revenueModel}` : ''}
+    ${businessIdea.pricingStrategy ? `Pricing Strategy: ${businessIdea.pricingStrategy}` : ''}
+    ${businessIdea.monthlyRevenue ? `Current Monthly Revenue: $${businessIdea.monthlyRevenue}` : ''}
+    ${businessIdea.burnRate ? `Monthly Burn Rate: $${businessIdea.burnRate}` : ''}
+    ${businessIdea.breakEven ? `Break-Even Timeline: ${businessIdea.breakEven}` : ''}
     
     Include:
     1. Revenue model and pricing strategy

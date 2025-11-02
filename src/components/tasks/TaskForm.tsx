@@ -30,20 +30,36 @@ type TaskFormData = z.infer<typeof taskFormSchema>;
 interface TaskFormProps {
   companyId: string;
   businessPlanId?: string;
+  task?: {
+    id: string;
+    title: string;
+    description?: string;
+    status: string;
+    priority: string;
+    category?: string;
+    estimated_hours?: number;
+    due_date?: string;
+  } | null;
   onTaskCreated?: () => void;
   onCancel?: () => void;
 }
 
-export const TaskForm = ({ companyId, businessPlanId, onTaskCreated, onCancel }: TaskFormProps) => {
+export const TaskForm = ({ companyId, businessPlanId, task, onTaskCreated, onCancel }: TaskFormProps) => {
   const { user } = useAuth();
   const [isLoading, setIsLoading] = useState(false);
-  const [dueDate, setDueDate] = useState<Date>();
+  const [dueDate, setDueDate] = useState<Date | undefined>(
+    task?.due_date ? new Date(task.due_date) : undefined
+  );
 
   const form = useForm<TaskFormData>({
     resolver: zodResolver(taskFormSchema),
     defaultValues: {
-      status: 'todo',
-      priority: 'medium',
+      title: task?.title || '',
+      description: task?.description || '',
+      status: (task?.status as any) || 'todo',
+      priority: (task?.priority as any) || 'medium',
+      category: task?.category || '',
+      estimated_hours: task?.estimated_hours || undefined,
     },
   });
 
@@ -52,29 +68,43 @@ export const TaskForm = ({ companyId, businessPlanId, onTaskCreated, onCancel }:
 
     setIsLoading(true);
     try {
-      const { error } = await supabase
-        .from('tasks')
-        .insert({
-          title: data.title,
-          description: data.description,
-          status: data.status,
-          priority: data.priority,
-          category: data.category,
-          estimated_hours: data.estimated_hours,
-          company_id: companyId,
-          business_plan_id: businessPlanId,
-          due_date: dueDate ? format(dueDate, 'yyyy-MM-dd') : null,
-        });
+      const taskData = {
+        title: data.title,
+        description: data.description,
+        status: data.status,
+        priority: data.priority,
+        category: data.category,
+        estimated_hours: data.estimated_hours,
+        company_id: companyId,
+        business_plan_id: businessPlanId,
+        due_date: dueDate ? format(dueDate, 'yyyy-MM-dd') : null,
+      };
 
-      if (error) throw error;
+      if (task?.id) {
+        // Update existing task
+        const { error } = await supabase
+          .from('tasks')
+          .update(taskData)
+          .eq('id', task.id);
 
-      toast.success('Task created successfully');
+        if (error) throw error;
+        toast.success('Task updated successfully');
+      } else {
+        // Create new task
+        const { error } = await supabase
+          .from('tasks')
+          .insert(taskData);
+
+        if (error) throw error;
+        toast.success('Task created successfully');
+      }
+
       form.reset();
       setDueDate(undefined);
       onTaskCreated?.();
     } catch (error) {
-      console.error('Error creating task:', error);
-      toast.error('Failed to create task');
+      console.error('Error saving task:', error);
+      toast.error(task?.id ? 'Failed to update task' : 'Failed to create task');
     } finally {
       setIsLoading(false);
     }
@@ -198,9 +228,9 @@ export const TaskForm = ({ companyId, businessPlanId, onTaskCreated, onCancel }:
             Cancel
           </Button>
         )}
-        <Button type="submit" disabled={isLoading} className="bg-primary-gradient">
+        <Button type="submit" disabled={isLoading} className="bg-primary hover:bg-primary/90">
           <Plus className="h-4 w-4 mr-2" />
-          {isLoading ? 'Creating...' : 'Create Task'}
+          {isLoading ? (task ? 'Updating...' : 'Creating...') : (task ? 'Update Task' : 'Create Task')}
         </Button>
       </div>
     </form>

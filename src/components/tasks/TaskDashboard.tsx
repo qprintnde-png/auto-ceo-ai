@@ -50,6 +50,7 @@ export const TaskDashboard = () => {
   const [selectedCompany, setSelectedCompany] = useState<string>('');
   const [isLoading, setIsLoading] = useState(true);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [editingTask, setEditingTask] = useState<Task | null>(null);
   const [isSuggestingTasks, setIsSuggestingTasks] = useState(false);
   const [taskSuggestions, setTaskSuggestions] = useState<TaskSuggestion[]>([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
@@ -114,6 +115,12 @@ export const TaskDashboard = () => {
   const handleTaskCreated = () => {
     fetchTasks();
     setIsDialogOpen(false);
+    setEditingTask(null);
+  };
+
+  const handleEditTask = (task: Task) => {
+    setEditingTask(task);
+    setIsDialogOpen(true);
   };
 
   const handleStatusChange = async (taskId: string, newStatus: string) => {
@@ -288,7 +295,10 @@ export const TaskDashboard = () => {
                 AI Suggestions
               </Button>
               
-              <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+              <Dialog open={isDialogOpen} onOpenChange={(open) => {
+                setIsDialogOpen(open);
+                if (!open) setEditingTask(null);
+              }}>
                 <DialogTrigger asChild>
                   <Button className="bg-white text-primary hover:bg-white/90">
                     <Plus className="h-4 w-4 mr-2" />
@@ -297,12 +307,16 @@ export const TaskDashboard = () => {
                 </DialogTrigger>
                 <DialogContent className="max-w-2xl">
                   <DialogHeader>
-                    <DialogTitle>Create New Task</DialogTitle>
+                    <DialogTitle>{editingTask ? 'Edit Task' : 'Create New Task'}</DialogTitle>
                   </DialogHeader>
                   <TaskForm
                     companyId={selectedCompany}
+                    task={editingTask}
                     onTaskCreated={handleTaskCreated}
-                    onCancel={() => setIsDialogOpen(false)}
+                    onCancel={() => {
+                      setIsDialogOpen(false);
+                      setEditingTask(null);
+                    }}
                   />
                 </DialogContent>
               </Dialog>
@@ -500,6 +514,7 @@ export const TaskDashboard = () => {
                 <TaskCard
                   key={task.id}
                   task={task}
+                  onEdit={handleEditTask}
                   onStatusChange={handleStatusChange}
                   onDelete={handleDeleteTask}
                 />

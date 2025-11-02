@@ -35,9 +35,9 @@ serve(async (req) => {
   }
 
   try {
-    const openAIApiKey = Deno.env.get('OPENAI_API_KEY');
-    if (!openAIApiKey) {
-      throw new Error('OpenAI API key not configured');
+    const lovableApiKey = Deno.env.get('LOVABLE_API_KEY');
+    if (!lovableApiKey) {
+      throw new Error('Lovable AI API key not configured');
     }
 
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
@@ -61,7 +61,7 @@ serve(async (req) => {
     console.log('Generating business plan for:', businessIdea.companyName);
 
     // Generate each section of the business plan
-    const sections = await generateBusinessPlanSections(openAIApiKey, businessIdea);
+    const sections = await generateBusinessPlanSections(lovableApiKey, businessIdea);
 
     // Save the business plan to database
     const { data: businessPlan, error: insertError } = await supabase
@@ -113,14 +113,14 @@ async function generateBusinessPlanSections(
 ): Promise<BusinessPlanSections> {
   
   const generateSection = async (sectionName: string, prompt: string): Promise<string> => {
-    const response = await fetch('https://api.openai.com/v1/chat/completions', {
+    const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${apiKey}`,
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'gpt-5-mini-2025-08-07',
+        model: 'google/gemini-2.5-flash',
         messages: [
           {
             role: 'system',
@@ -137,8 +137,8 @@ async function generateBusinessPlanSections(
 
     if (!response.ok) {
       const errorText = await response.text();
-      console.error(`OpenAI API error for ${sectionName}:`, response.status, errorText);
-      throw new Error(`OpenAI API error for ${sectionName}: ${response.status} - ${errorText}`);
+      console.error(`Lovable AI API error for ${sectionName}:`, response.status, errorText);
+      throw new Error(`Lovable AI API error for ${sectionName}: ${response.status} - ${errorText}`);
     }
 
     const data = await response.json();

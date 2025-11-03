@@ -26,9 +26,19 @@ interface BusinessPlan {
 
 type ViewMode = 'list' | 'generator' | 'viewer';
 
+interface FullBusinessPlan extends BusinessPlan {
+  executive_summary: string;
+  market_analysis: string;
+  competitive_analysis: string;
+  marketing_strategy: string;
+  operations_plan: string;
+  financial_projections: string;
+}
+
 const BusinessPlan = () => {
   const [viewMode, setViewMode] = useState<ViewMode>('list');
   const [selectedPlanId, setSelectedPlanId] = useState<string | null>(null);
+  const [editingPlan, setEditingPlan] = useState<FullBusinessPlan | null>(null);
   const [companies, setCompanies] = useState<Company[]>([]);
   const [selectedCompanyId, setSelectedCompanyId] = useState<string | null>(null);
   const [businessPlans, setBusinessPlans] = useState<BusinessPlan[]>([]);
@@ -103,13 +113,37 @@ const BusinessPlan = () => {
 
   const handlePlanGenerated = (planId: string) => {
     setSelectedPlanId(planId);
+    setEditingPlan(null);
     setViewMode('viewer');
     loadBusinessPlans(); // Refresh the list
   };
 
   const handleViewPlan = (planId: string) => {
     setSelectedPlanId(planId);
+    setEditingPlan(null);
     setViewMode('viewer');
+  };
+
+  const handleEditPlan = async (planId: string) => {
+    try {
+      const { data, error } = await supabase
+        .from('business_plans')
+        .select('*')
+        .eq('id', planId)
+        .single();
+
+      if (error) throw error;
+
+      setEditingPlan(data as FullBusinessPlan);
+      setViewMode('generator');
+    } catch (error: any) {
+      console.error('Error loading plan for editing:', error);
+      toast({
+        title: "Error",
+        description: "Failed to load business plan for editing",
+        variant: "destructive"
+      });
+    }
   };
 
   const formatCurrency = (amount: number | null) => {
@@ -185,7 +219,10 @@ const BusinessPlan = () => {
         
         {viewMode === 'list' && (
           <Button 
-            onClick={() => setViewMode('generator')}
+            onClick={() => {
+              setEditingPlan(null);
+              setViewMode('generator');
+            }}
             size="lg"
             className="bg-primary-gradient hover:opacity-90 shadow-elegant ml-auto"
           >
@@ -278,22 +315,18 @@ const BusinessPlan = () => {
         <BusinessPlanGenerator 
           companyId={selectedCompanyId}
           onPlanGenerated={handlePlanGenerated}
+          editingPlan={editingPlan}
         />
       )}
 
       {viewMode === 'viewer' && selectedPlanId && (
         <BusinessPlanViewer 
           planId={selectedPlanId}
-          onEdit={() => {
-            // TODO: Implement edit functionality
-            toast({
-              title: "Coming Soon",
-              description: "Edit functionality will be available soon"
-            });
-          }}
+          onEdit={() => handleEditPlan(selectedPlanId)}
           onBack={() => {
             setViewMode('list');
             setSelectedPlanId(null);
+            setEditingPlan(null);
           }}
         />
       )}

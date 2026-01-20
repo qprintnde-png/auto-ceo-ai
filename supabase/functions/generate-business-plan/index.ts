@@ -45,12 +45,25 @@ interface BusinessPlanSections {
   financialProjections: string;
 }
 
+interface SectionResult {
+  section: keyof BusinessPlanSections;
+  content: string;
+  latencyMs: number;
+}
+
+interface GenerationMetrics {
+  totalTimeMs: number;
+  sectionMetrics: Record<string, { latencyMs: number; success: boolean }>;
+}
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
+    const startTime = Date.now();
+    
     const lovableApiKey = Deno.env.get('LOVABLE_API_KEY');
     if (!lovableApiKey) {
       throw new Error('Lovable AI API key not configured');
@@ -75,9 +88,14 @@ serve(async (req) => {
     const { businessIdea, companyId }: { businessIdea: BusinessIdeaInput; companyId: string } = await req.json();
 
     console.log('Generating business plan for:', businessIdea.companyName);
+    console.log('Using parallel processing with Promise.allSettled...');
 
-    // Generate each section of the business plan
-    const sections = await generateBusinessPlanSections(lovableApiKey, businessIdea);
+    // Generate all sections in parallel
+    const { sections, metrics } = await generateBusinessPlanSectionsParallel(lovableApiKey, businessIdea);
+
+    const totalTimeMs = Date.now() - startTime;
+    console.log(`Total generation time: ${totalTimeMs}ms`);
+    console.log('Section metrics:', JSON.stringify(metrics.sectionMetrics, null, 2));
 
     // Save the business plan to database
     const { data: businessPlan, error: insertError } = await supabase
@@ -93,7 +111,8 @@ serve(async (req) => {
         operations_plan: sections.operationsPlan,
         financial_projections: sections.financialProjections,
         funding_requirements: businessIdea.fundingGoal || null,
-        status: 'draft'
+        status: 'draft',
+        ai_generated: true
       })
       .select()
       .single();
@@ -107,7 +126,11 @@ serve(async (req) => {
 
     return new Response(JSON.stringify({ 
       businessPlan,
-      message: 'Business plan generated successfully'
+      message: 'Business plan generated successfully',
+      metrics: {
+        totalTimeMs,
+        sectionMetrics: metrics.sectionMetrics
+      }
     }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' }
     });
@@ -123,47 +146,58 @@ serve(async (req) => {
   }
 });
 
-async function generateBusinessPlanSections(
+// Helper function to generate a single section with timing
+async function generateSection(
   apiKey: string,
-  businessIdea: BusinessIdeaInput
-): Promise<BusinessPlanSections> {
+  sectionName: keyof BusinessPlanSections,
+  prompt: string
+): Promise<SectionResult> {
+  const startTime = Date.now();
   
-  const generateSection = async (sectionName: string, prompt: string): Promise<string> => {
-    const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${apiKey}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        model: 'google/gemini-2.5-flash',
-        messages: [
-          {
-            role: 'system',
-            content: `You are an expert business consultant and strategist with 20+ years of experience helping startups create comprehensive business plans. Provide detailed, actionable, and professional content that could be used in a real business plan presentation to investors.`
-          },
-          {
-            role: 'user',
-            content: prompt
-          }
-        ],
-        max_completion_tokens: 1500
-      }),
-    });
+  const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${apiKey}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      model: 'google/gemini-2.5-flash',
+      messages: [
+        {
+          role: 'system',
+          content: `You are an expert business consultant and strategist with 20+ years of experience helping startups create comprehensive business plans. Provide detailed, actionable, and professional content that could be used in a real business plan presentation to investors.`
+        },
+        {
+          role: 'user',
+          content: prompt
+        }
+      ],
+      max_completion_tokens: 1500
+    }),
+  });
 
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error(`Lovable AI API error for ${sectionName}:`, response.status, errorText);
-      throw new Error(`Lovable AI API error for ${sectionName}: ${response.status} - ${errorText}`);
-    }
+  if (!response.ok) {
+    const errorText = await response.text();
+    console.error(`Lovable AI API error for ${sectionName}:`, response.status, errorText);
+    throw new Error(`Lovable AI API error for ${sectionName}: ${response.status} - ${errorText}`);
+  }
 
-    const data = await response.json();
-    return data.choices[0].message.content;
+  const data = await response.json();
+  const latencyMs = Date.now() - startTime;
+  
+  console.log(`Section ${sectionName} completed in ${latencyMs}ms`);
+  
+  return {
+    section: sectionName,
+    content: data.choices[0].message.content,
+    latencyMs
   };
+}
 
-  // Generate Executive Summary
-  const executiveSummary = await generateSection('Executive Summary', 
-    `Create a compelling executive summary for a business plan with these details:
+// Build section prompts
+function buildSectionPrompts(businessIdea: BusinessIdeaInput): Record<keyof BusinessPlanSections, string> {
+  return {
+    executiveSummary: `Create a compelling executive summary for a business plan with these details:
     
     Company: ${businessIdea.companyName}
     Industry: ${businessIdea.industry}
@@ -178,12 +212,9 @@ async function generateBusinessPlanSections(
     ${businessIdea.foundersBackground ? `Team Background: ${businessIdea.foundersBackground}` : ''}
     ${businessIdea.monthlyRevenue ? `Monthly Revenue: $${businessIdea.monthlyRevenue}` : ''}
     
-    The executive summary should be 300-500 words and include: company overview, market opportunity, competitive advantage, financial highlights, and funding requirements.`
-  );
+    The executive summary should be 300-500 words and include: company overview, market opportunity, competitive advantage, financial highlights, and funding requirements.`,
 
-  // Generate Market Analysis
-  const marketAnalysis = await generateSection('Market Analysis',
-    `Conduct a comprehensive market analysis for ${businessIdea.companyName} in the ${businessIdea.industry} industry targeting ${businessIdea.targetMarket}.
+    marketAnalysis: `Conduct a comprehensive market analysis for ${businessIdea.companyName} in the ${businessIdea.industry} industry targeting ${businessIdea.targetMarket}.
     
     ${businessIdea.marketSize ? `Market Size Information: ${businessIdea.marketSize}` : ''}
     ${businessIdea.customerAcquisition ? `Customer Acquisition Strategy: ${businessIdea.customerAcquisition}` : ''}
@@ -197,12 +228,9 @@ async function generateBusinessPlanSections(
     5. Market segmentation
     6. Barriers to entry
     
-    Make it specific to the ${businessIdea.industry} industry and provide realistic data and insights.`
-  );
+    Make it specific to the ${businessIdea.industry} industry and provide realistic data and insights.`,
 
-  // Generate Competitive Analysis
-  const competitiveAnalysis = await generateSection('Competitive Analysis',
-    `Analyze the competitive landscape for ${businessIdea.companyName} in the ${businessIdea.industry} industry.
+    competitiveAnalysis: `Analyze the competitive landscape for ${businessIdea.companyName} in the ${businessIdea.industry} industry.
     
     Business Model: ${businessIdea.businessModel}
     Unique Selling Proposition: ${businessIdea.uniqueSellingProposition}
@@ -217,17 +245,17 @@ async function generateBusinessPlanSections(
     5. Competitive advantages and differentiation
     6. Potential threats and opportunities
     
-    Focus on how ${businessIdea.companyName} can differentiate itself in this market.`
-  );
+    Focus on how ${businessIdea.companyName} can differentiate itself in this market.`,
 
-  // Generate Marketing Strategy
-  const marketingStrategy = await generateSection('Marketing Strategy',
-    `Develop a comprehensive marketing strategy for ${businessIdea.companyName}.
+    marketingStrategy: `Develop a comprehensive marketing strategy for ${businessIdea.companyName}.
     
     Target Market: ${businessIdea.targetMarket}
     Industry: ${businessIdea.industry}
     Business Model: ${businessIdea.businessModel}
     Solution: ${businessIdea.solution}
+    ${businessIdea.customerAcquisition ? `Customer Acquisition: ${businessIdea.customerAcquisition}` : ''}
+    ${businessIdea.marketingChannels ? `Marketing Channels: ${businessIdea.marketingChannels}` : ''}
+    ${businessIdea.salesStrategy ? `Sales Strategy: ${businessIdea.salesStrategy}` : ''}
     
     Include:
     1. Marketing mix (4Ps: Product, Price, Place, Promotion)
@@ -236,12 +264,9 @@ async function generateBusinessPlanSections(
     4. Brand positioning and messaging
     5. Sales strategy and process
     6. Customer retention and growth strategies
-    7. Marketing budget allocation and ROI expectations`
-  );
+    7. Marketing budget allocation and ROI expectations`,
 
-  // Generate Operations Plan
-  const operationsPlan = await generateSection('Operations Plan',
-    `Create a detailed operations plan for ${businessIdea.companyName}.
+    operationsPlan: `Create a detailed operations plan for ${businessIdea.companyName}.
     
     Industry: ${businessIdea.industry}
     Business Model: ${businessIdea.businessModel}
@@ -250,6 +275,7 @@ async function generateBusinessPlanSections(
     ${businessIdea.teamSize ? `Current Team Size: ${businessIdea.teamSize}` : ''}
     ${businessIdea.keyHires ? `Key Hires Needed: ${businessIdea.keyHires}` : ''}
     ${businessIdea.foundersBackground ? `Team Background: ${businessIdea.foundersBackground}` : ''}
+    ${businessIdea.features ? `Key Features: ${businessIdea.features}` : ''}
     
     Include:
     1. Operational workflow and processes
@@ -260,12 +286,9 @@ async function generateBusinessPlanSections(
     6. Scalability considerations
     7. Risk management and contingency planning
     
-    Make it specific to the ${businessIdea.industry} industry and business model.`
-  );
+    Make it specific to the ${businessIdea.industry} industry and business model.`,
 
-  // Generate Financial Projections
-  const financialProjections = await generateSection('Financial Projections',
-    `Create comprehensive financial projections for ${businessIdea.companyName}.
+    financialProjections: `Create comprehensive financial projections for ${businessIdea.companyName}.
     
     Industry: ${businessIdea.industry}
     Business Model: ${businessIdea.businessModel}
@@ -288,14 +311,74 @@ async function generateBusinessPlanSections(
     8. Sensitivity analysis and scenarios
     
     Provide realistic numbers based on industry benchmarks for ${businessIdea.industry}.`
+  };
+}
+
+// Generate all sections in parallel using Promise.allSettled
+async function generateBusinessPlanSectionsParallel(
+  apiKey: string,
+  businessIdea: BusinessIdeaInput
+): Promise<{ sections: BusinessPlanSections; metrics: GenerationMetrics }> {
+  const prompts = buildSectionPrompts(businessIdea);
+  const sectionNames = Object.keys(prompts) as (keyof BusinessPlanSections)[];
+  
+  console.log(`Starting parallel generation of ${sectionNames.length} sections...`);
+  const parallelStartTime = Date.now();
+
+  // Execute all section generations in parallel
+  const results = await Promise.allSettled(
+    sectionNames.map(section => 
+      generateSection(apiKey, section, prompts[section])
+    )
   );
 
+  const parallelEndTime = Date.now();
+  console.log(`All parallel requests completed in ${parallelEndTime - parallelStartTime}ms`);
+
+  // Process results and build sections object
+  const sections: Partial<BusinessPlanSections> = {};
+  const sectionMetrics: Record<string, { latencyMs: number; success: boolean }> = {};
+  const errors: string[] = [];
+
+  results.forEach((result, index) => {
+    const sectionName = sectionNames[index];
+    
+    if (result.status === 'fulfilled') {
+      sections[sectionName] = result.value.content;
+      sectionMetrics[sectionName] = {
+        latencyMs: result.value.latencyMs,
+        success: true
+      };
+    } else {
+      console.error(`Failed to generate ${sectionName}:`, result.reason);
+      errors.push(`${sectionName}: ${result.reason.message || 'Unknown error'}`);
+      sectionMetrics[sectionName] = {
+        latencyMs: 0,
+        success: false
+      };
+      // Provide a fallback message for failed sections
+      sections[sectionName] = `[This section could not be generated. Please try regenerating the business plan or contact support if the issue persists.]`;
+    }
+  });
+
+  // If all sections failed, throw an error
+  if (errors.length === sectionNames.length) {
+    throw new Error(`All sections failed to generate: ${errors.join('; ')}`);
+  }
+
+  // Log summary
+  const successCount = results.filter(r => r.status === 'fulfilled').length;
+  console.log(`Generation complete: ${successCount}/${sectionNames.length} sections successful`);
+  
+  if (errors.length > 0) {
+    console.warn(`Some sections failed: ${errors.join('; ')}`);
+  }
+
   return {
-    executiveSummary,
-    marketAnalysis,
-    competitiveAnalysis,
-    marketingStrategy,
-    operationsPlan,
-    financialProjections
+    sections: sections as BusinessPlanSections,
+    metrics: {
+      totalTimeMs: parallelEndTime - parallelStartTime,
+      sectionMetrics
+    }
   };
 }

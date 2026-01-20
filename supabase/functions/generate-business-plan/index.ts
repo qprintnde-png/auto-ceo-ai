@@ -49,11 +49,23 @@ interface SectionResult {
   section: keyof BusinessPlanSections;
   content: string;
   latencyMs: number;
+  fromCache: boolean;
 }
 
 interface GenerationMetrics {
   totalTimeMs: number;
-  sectionMetrics: Record<string, { latencyMs: number; success: boolean }>;
+  cacheHits: number;
+  cacheMisses: number;
+  sectionMetrics: Record<string, { latencyMs: number; success: boolean; fromCache: boolean }>;
+}
+
+// Simple hash function for cache keys
+async function hashInput(input: string): Promise<string> {
+  const encoder = new TextEncoder();
+  const data = encoder.encode(input);
+  const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+  const hashArray = Array.from(new Uint8Array(hashBuffer));
+  return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
 }
 
 serve(async (req) => {
@@ -85,16 +97,27 @@ serve(async (req) => {
       });
     }
 
-    const { businessIdea, companyId }: { businessIdea: BusinessIdeaInput; companyId: string } = await req.json();
+    const { businessIdea, companyId, skipCache = false }: { 
+      businessIdea: BusinessIdeaInput; 
+      companyId: string;
+      skipCache?: boolean;
+    } = await req.json();
 
     console.log('Generating business plan for:', businessIdea.companyName);
     console.log('Using parallel processing with Promise.allSettled...');
+    console.log('Cache enabled:', !skipCache);
 
-    // Generate all sections in parallel
-    const { sections, metrics } = await generateBusinessPlanSectionsParallel(lovableApiKey, businessIdea);
+    // Generate all sections in parallel with caching
+    const { sections, metrics } = await generateBusinessPlanSectionsParallel(
+      supabase,
+      lovableApiKey, 
+      businessIdea,
+      !skipCache
+    );
 
     const totalTimeMs = Date.now() - startTime;
     console.log(`Total generation time: ${totalTimeMs}ms`);
+    console.log(`Cache hits: ${metrics.cacheHits}/${metrics.cacheHits + metrics.cacheMisses}`);
     console.log('Section metrics:', JSON.stringify(metrics.sectionMetrics, null, 2));
 
     // Save the business plan to database
@@ -129,6 +152,8 @@ serve(async (req) => {
       message: 'Business plan generated successfully',
       metrics: {
         totalTimeMs,
+        cacheHits: metrics.cacheHits,
+        cacheMisses: metrics.cacheMisses,
         sectionMetrics: metrics.sectionMetrics
       }
     }), {
@@ -146,13 +171,88 @@ serve(async (req) => {
   }
 });
 
-// Helper function to generate a single section with timing
+// Check cache for existing response
+async function checkCache(
+  supabase: any,
+  inputHash: string,
+  sectionType: string
+): Promise<string | null> {
+  try {
+    const { data, error } = await supabase
+      .from('cached_sections')
+      .select('id, content')
+      .eq('input_hash', inputHash)
+      .eq('section_type', sectionType)
+      .gt('expires_at', new Date().toISOString())
+      .single();
+
+    if (error || !data) {
+      return null;
+    }
+
+    // Increment hit count asynchronously (don't await)
+    supabase
+      .from('cached_sections')
+      .update({ hit_count: data.hit_count + 1 })
+      .eq('id', data.id)
+      .then(() => {});
+
+    return data.content;
+  } catch {
+    return null;
+  }
+}
+
+// Store response in cache
+async function storeInCache(
+  supabase: any,
+  inputHash: string,
+  sectionType: string,
+  aiProvider: string,
+  content: string
+): Promise<void> {
+  try {
+    await supabase
+      .from('cached_sections')
+      .upsert({
+        input_hash: inputHash,
+        section_type: sectionType,
+        ai_provider: aiProvider,
+        content: content,
+        created_at: new Date().toISOString(),
+        expires_at: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
+        hit_count: 0
+      }, { onConflict: 'input_hash' });
+  } catch (error) {
+    console.warn('Failed to store in cache:', error);
+  }
+}
+
+// Helper function to generate a single section with timing and caching
 async function generateSection(
+  supabase: any,
   apiKey: string,
   sectionName: keyof BusinessPlanSections,
-  prompt: string
+  prompt: string,
+  useCache: boolean
 ): Promise<SectionResult> {
   const startTime = Date.now();
+  const inputHash = await hashInput(`${sectionName}:${prompt}`);
+  
+  // Check cache first
+  if (useCache) {
+    const cachedContent = await checkCache(supabase, inputHash, sectionName);
+    if (cachedContent) {
+      console.log(`Cache HIT for ${sectionName}`);
+      return {
+        section: sectionName,
+        content: cachedContent,
+        latencyMs: Date.now() - startTime,
+        fromCache: true
+      };
+    }
+    console.log(`Cache MISS for ${sectionName}`);
+  }
   
   const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
     method: 'POST',
@@ -183,14 +283,21 @@ async function generateSection(
   }
 
   const data = await response.json();
+  const content = data.choices[0].message.content;
   const latencyMs = Date.now() - startTime;
   
-  console.log(`Section ${sectionName} completed in ${latencyMs}ms`);
+  console.log(`Section ${sectionName} generated in ${latencyMs}ms`);
+  
+  // Store in cache asynchronously
+  if (useCache) {
+    storeInCache(supabase, inputHash, sectionName, 'gemini-2.5-flash', content);
+  }
   
   return {
     section: sectionName,
-    content: data.choices[0].message.content,
-    latencyMs
+    content,
+    latencyMs,
+    fromCache: false
   };
 }
 
@@ -314,10 +421,12 @@ function buildSectionPrompts(businessIdea: BusinessIdeaInput): Record<keyof Busi
   };
 }
 
-// Generate all sections in parallel using Promise.allSettled
+// Generate all sections in parallel using Promise.allSettled with caching
 async function generateBusinessPlanSectionsParallel(
+  supabase: any,
   apiKey: string,
-  businessIdea: BusinessIdeaInput
+  businessIdea: BusinessIdeaInput,
+  useCache: boolean
 ): Promise<{ sections: BusinessPlanSections; metrics: GenerationMetrics }> {
   const prompts = buildSectionPrompts(businessIdea);
   const sectionNames = Object.keys(prompts) as (keyof BusinessPlanSections)[];
@@ -328,7 +437,7 @@ async function generateBusinessPlanSectionsParallel(
   // Execute all section generations in parallel
   const results = await Promise.allSettled(
     sectionNames.map(section => 
-      generateSection(apiKey, section, prompts[section])
+      generateSection(supabase, apiKey, section, prompts[section], useCache)
     )
   );
 
@@ -337,8 +446,10 @@ async function generateBusinessPlanSectionsParallel(
 
   // Process results and build sections object
   const sections: Partial<BusinessPlanSections> = {};
-  const sectionMetrics: Record<string, { latencyMs: number; success: boolean }> = {};
+  const sectionMetrics: Record<string, { latencyMs: number; success: boolean; fromCache: boolean }> = {};
   const errors: string[] = [];
+  let cacheHits = 0;
+  let cacheMisses = 0;
 
   results.forEach((result, index) => {
     const sectionName = sectionNames[index];
@@ -347,15 +458,23 @@ async function generateBusinessPlanSectionsParallel(
       sections[sectionName] = result.value.content;
       sectionMetrics[sectionName] = {
         latencyMs: result.value.latencyMs,
-        success: true
+        success: true,
+        fromCache: result.value.fromCache
       };
+      if (result.value.fromCache) {
+        cacheHits++;
+      } else {
+        cacheMisses++;
+      }
     } else {
       console.error(`Failed to generate ${sectionName}:`, result.reason);
       errors.push(`${sectionName}: ${result.reason.message || 'Unknown error'}`);
       sectionMetrics[sectionName] = {
         latencyMs: 0,
-        success: false
+        success: false,
+        fromCache: false
       };
+      cacheMisses++;
       // Provide a fallback message for failed sections
       sections[sectionName] = `[This section could not be generated. Please try regenerating the business plan or contact support if the issue persists.]`;
     }
@@ -369,6 +488,7 @@ async function generateBusinessPlanSectionsParallel(
   // Log summary
   const successCount = results.filter(r => r.status === 'fulfilled').length;
   console.log(`Generation complete: ${successCount}/${sectionNames.length} sections successful`);
+  console.log(`Cache performance: ${cacheHits} hits, ${cacheMisses} misses`);
   
   if (errors.length > 0) {
     console.warn(`Some sections failed: ${errors.join('; ')}`);
@@ -378,6 +498,8 @@ async function generateBusinessPlanSectionsParallel(
     sections: sections as BusinessPlanSections,
     metrics: {
       totalTimeMs: parallelEndTime - parallelStartTime,
+      cacheHits,
+      cacheMisses,
       sectionMetrics
     }
   };

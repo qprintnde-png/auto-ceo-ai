@@ -79,6 +79,39 @@ export type Database = {
           },
         ]
       }
+      cached_sections: {
+        Row: {
+          ai_provider: string
+          content: string
+          created_at: string | null
+          expires_at: string | null
+          hit_count: number | null
+          id: string
+          input_hash: string
+          section_type: string
+        }
+        Insert: {
+          ai_provider: string
+          content: string
+          created_at?: string | null
+          expires_at?: string | null
+          hit_count?: number | null
+          id?: string
+          input_hash: string
+          section_type: string
+        }
+        Update: {
+          ai_provider?: string
+          content?: string
+          created_at?: string | null
+          expires_at?: string | null
+          hit_count?: number | null
+          id?: string
+          input_hash?: string
+          section_type?: string
+        }
+        Relationships: []
+      }
       companies: {
         Row: {
           created_at: string
@@ -600,7 +633,7 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      cleanup_expired_cache: { Args: never; Returns: number }
     }
     Enums: {
       user_role: "founder" | "investor" | "admin"

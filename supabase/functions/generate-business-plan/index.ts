@@ -68,6 +68,12 @@ async function hashInput(input: string): Promise<string> {
   return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
 }
 
+// SSE helper to send events
+function sendSSE(controller: ReadableStreamDefaultController, type: string, data: any) {
+  const event = `data: ${JSON.stringify({ type, ...data })}\n\n`;
+  controller.enqueue(new TextEncoder().encode(event));
+}
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -97,17 +103,85 @@ serve(async (req) => {
       });
     }
 
-    const { businessIdea, companyId, skipCache = false }: { 
+    const { businessIdea, companyId, skipCache = false, stream = false }: { 
       businessIdea: BusinessIdeaInput; 
       companyId: string;
       skipCache?: boolean;
+      stream?: boolean;
     } = await req.json();
 
     console.log('Generating business plan for:', businessIdea.companyName);
-    console.log('Using parallel processing with Promise.allSettled...');
+    console.log('Streaming mode:', stream);
     console.log('Cache enabled:', !skipCache);
 
-    // Generate all sections in parallel with caching
+    // If streaming is requested, return SSE response
+    if (stream) {
+      const streamResponse = new ReadableStream({
+        async start(controller) {
+          try {
+            // Generate with streaming progress
+            const { sections, metrics } = await generateBusinessPlanSectionsWithStreaming(
+              supabase,
+              lovableApiKey,
+              businessIdea,
+              !skipCache,
+              controller
+            );
+
+            // Save the business plan to database
+            const { data: businessPlan, error: insertError } = await supabase
+              .from('business_plans')
+              .insert({
+                company_id: companyId,
+                title: `${businessIdea.companyName} Business Plan`,
+                description: `AI-generated business plan for ${businessIdea.companyName}`,
+                executive_summary: sections.executiveSummary,
+                market_analysis: sections.marketAnalysis,
+                competitive_analysis: sections.competitiveAnalysis,
+                marketing_strategy: sections.marketingStrategy,
+                operations_plan: sections.operationsPlan,
+                financial_projections: sections.financialProjections,
+                funding_requirements: businessIdea.fundingGoal || null,
+                status: 'draft',
+                ai_generated: true
+              })
+              .select()
+              .single();
+
+            if (insertError) {
+              console.error('Database insert error:', insertError);
+              sendSSE(controller, 'error', { message: 'Failed to save business plan' });
+            } else {
+              sendSSE(controller, 'complete', { 
+                businessPlanId: businessPlan.id,
+                metrics: {
+                  totalTimeMs: Date.now() - startTime,
+                  cacheHits: metrics.cacheHits,
+                  cacheMisses: metrics.cacheMisses
+                }
+              });
+              console.log('Business plan generated successfully:', businessPlan.id);
+            }
+          } catch (error) {
+            console.error('Streaming error:', error);
+            sendSSE(controller, 'error', { message: error.message || 'Generation failed' });
+          } finally {
+            controller.close();
+          }
+        }
+      });
+
+      return new Response(streamResponse, {
+        headers: {
+          ...corsHeaders,
+          'Content-Type': 'text/event-stream',
+          'Cache-Control': 'no-cache',
+          'Connection': 'keep-alive',
+        }
+      });
+    }
+
+    // Non-streaming mode (original behavior)
     const { sections, metrics } = await generateBusinessPlanSectionsParallel(
       supabase,
       lovableApiKey, 
@@ -118,7 +192,6 @@ serve(async (req) => {
     const totalTimeMs = Date.now() - startTime;
     console.log(`Total generation time: ${totalTimeMs}ms`);
     console.log(`Cache hits: ${metrics.cacheHits}/${metrics.cacheHits + metrics.cacheMisses}`);
-    console.log('Section metrics:', JSON.stringify(metrics.sectionMetrics, null, 2));
 
     // Save the business plan to database
     const { data: businessPlan, error: insertError } = await supabase
@@ -149,6 +222,7 @@ serve(async (req) => {
 
     return new Response(JSON.stringify({ 
       businessPlan,
+      businessPlanId: businessPlan.id,
       message: 'Business plan generated successfully',
       metrics: {
         totalTimeMs,
@@ -301,6 +375,34 @@ async function generateSection(
   };
 }
 
+// Generate section with streaming events
+async function generateSectionWithStreaming(
+  supabase: any,
+  apiKey: string,
+  sectionName: keyof BusinessPlanSections,
+  prompt: string,
+  useCache: boolean,
+  controller: ReadableStreamDefaultController
+): Promise<SectionResult> {
+  sendSSE(controller, 'section_start', { section: sectionName });
+  
+  try {
+    const result = await generateSection(supabase, apiKey, sectionName, prompt, useCache);
+    sendSSE(controller, 'section_complete', { 
+      section: sectionName, 
+      latencyMs: result.latencyMs,
+      fromCache: result.fromCache 
+    });
+    return result;
+  } catch (error) {
+    sendSSE(controller, 'section_error', { 
+      section: sectionName, 
+      error: error.message 
+    });
+    throw error;
+  }
+}
+
 // Build section prompts
 function buildSectionPrompts(businessIdea: BusinessIdeaInput): Record<keyof BusinessPlanSections, string> {
   return {
@@ -421,23 +523,26 @@ function buildSectionPrompts(businessIdea: BusinessIdeaInput): Record<keyof Busi
   };
 }
 
-// Generate all sections in parallel using Promise.allSettled with caching
-async function generateBusinessPlanSectionsParallel(
+// Generate all sections in parallel with streaming progress
+async function generateBusinessPlanSectionsWithStreaming(
   supabase: any,
   apiKey: string,
   businessIdea: BusinessIdeaInput,
-  useCache: boolean
+  useCache: boolean,
+  controller: ReadableStreamDefaultController
 ): Promise<{ sections: BusinessPlanSections; metrics: GenerationMetrics }> {
   const prompts = buildSectionPrompts(businessIdea);
   const sectionNames = Object.keys(prompts) as (keyof BusinessPlanSections)[];
   
-  console.log(`Starting parallel generation of ${sectionNames.length} sections...`);
+  console.log(`Starting parallel generation with streaming of ${sectionNames.length} sections...`);
   const parallelStartTime = Date.now();
 
-  // Execute all section generations in parallel
+  sendSSE(controller, 'generation_start', { sections: sectionNames });
+
+  // Execute all section generations in parallel with streaming updates
   const results = await Promise.allSettled(
     sectionNames.map(section => 
-      generateSection(supabase, apiKey, section, prompts[section], useCache)
+      generateSectionWithStreaming(supabase, apiKey, section, prompts[section], useCache, controller)
     )
   );
 
@@ -475,32 +580,90 @@ async function generateBusinessPlanSectionsParallel(
         fromCache: false
       };
       cacheMisses++;
-      // Provide a fallback message for failed sections
       sections[sectionName] = `[This section could not be generated. Please try regenerating the business plan or contact support if the issue persists.]`;
     }
   });
 
-  // If all sections failed, throw an error
   if (errors.length === sectionNames.length) {
     throw new Error(`All sections failed to generate: ${errors.join('; ')}`);
   }
 
-  // Log summary
-  const successCount = results.filter(r => r.status === 'fulfilled').length;
-  console.log(`Generation complete: ${successCount}/${sectionNames.length} sections successful`);
-  console.log(`Cache performance: ${cacheHits} hits, ${cacheMisses} misses`);
+  const metrics: GenerationMetrics = {
+    totalTimeMs: parallelEndTime - parallelStartTime,
+    cacheHits,
+    cacheMisses,
+    sectionMetrics
+  };
+
+  return { sections: sections as BusinessPlanSections, metrics };
+}
+
+// Generate all sections in parallel (non-streaming)
+async function generateBusinessPlanSectionsParallel(
+  supabase: any,
+  apiKey: string,
+  businessIdea: BusinessIdeaInput,
+  useCache: boolean
+): Promise<{ sections: BusinessPlanSections; metrics: GenerationMetrics }> {
+  const prompts = buildSectionPrompts(businessIdea);
+  const sectionNames = Object.keys(prompts) as (keyof BusinessPlanSections)[];
   
-  if (errors.length > 0) {
-    console.warn(`Some sections failed: ${errors.join('; ')}`);
+  console.log(`Starting parallel generation of ${sectionNames.length} sections...`);
+  const parallelStartTime = Date.now();
+
+  const results = await Promise.allSettled(
+    sectionNames.map(section => 
+      generateSection(supabase, apiKey, section, prompts[section], useCache)
+    )
+  );
+
+  const parallelEndTime = Date.now();
+  console.log(`All parallel requests completed in ${parallelEndTime - parallelStartTime}ms`);
+
+  const sections: Partial<BusinessPlanSections> = {};
+  const sectionMetrics: Record<string, { latencyMs: number; success: boolean; fromCache: boolean }> = {};
+  const errors: string[] = [];
+  let cacheHits = 0;
+  let cacheMisses = 0;
+
+  results.forEach((result, index) => {
+    const sectionName = sectionNames[index];
+    
+    if (result.status === 'fulfilled') {
+      sections[sectionName] = result.value.content;
+      sectionMetrics[sectionName] = {
+        latencyMs: result.value.latencyMs,
+        success: true,
+        fromCache: result.value.fromCache
+      };
+      if (result.value.fromCache) {
+        cacheHits++;
+      } else {
+        cacheMisses++;
+      }
+    } else {
+      console.error(`Failed to generate ${sectionName}:`, result.reason);
+      errors.push(`${sectionName}: ${result.reason.message || 'Unknown error'}`);
+      sectionMetrics[sectionName] = {
+        latencyMs: 0,
+        success: false,
+        fromCache: false
+      };
+      cacheMisses++;
+      sections[sectionName] = `[This section could not be generated. Please try regenerating the business plan or contact support if the issue persists.]`;
+    }
+  });
+
+  if (errors.length === sectionNames.length) {
+    throw new Error(`All sections failed to generate: ${errors.join('; ')}`);
   }
 
-  return {
-    sections: sections as BusinessPlanSections,
-    metrics: {
-      totalTimeMs: parallelEndTime - parallelStartTime,
-      cacheHits,
-      cacheMisses,
-      sectionMetrics
-    }
+  const metrics: GenerationMetrics = {
+    totalTimeMs: parallelEndTime - parallelStartTime,
+    cacheHits,
+    cacheMisses,
+    sectionMetrics
   };
+
+  return { sections: sections as BusinessPlanSections, metrics };
 }

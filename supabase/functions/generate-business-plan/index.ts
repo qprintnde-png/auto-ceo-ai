@@ -7,6 +7,164 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
+// ============================================================================
+// Circuit Breaker Implementation
+// ============================================================================
+
+interface CircuitBreakerState {
+  failures: number;
+  lastFailure: number;
+  state: 'closed' | 'open' | 'half-open';
+  successCount: number;
+}
+
+interface CircuitBreakerConfig {
+  failureThreshold: number;      // Number of failures before opening circuit
+  resetTimeout: number;          // Time in ms before trying again (half-open)
+  successThreshold: number;      // Successes needed to close circuit from half-open
+}
+
+// In-memory circuit breaker state (per provider)
+const circuitBreakers: Map<string, CircuitBreakerState> = new Map();
+
+const DEFAULT_CIRCUIT_CONFIG: CircuitBreakerConfig = {
+  failureThreshold: 3,
+  resetTimeout: 30000, // 30 seconds
+  successThreshold: 2,
+};
+
+function getCircuitState(provider: string): CircuitBreakerState {
+  if (!circuitBreakers.has(provider)) {
+    circuitBreakers.set(provider, {
+      failures: 0,
+      lastFailure: 0,
+      state: 'closed',
+      successCount: 0,
+    });
+  }
+  return circuitBreakers.get(provider)!;
+}
+
+function isCircuitOpen(provider: string, config: CircuitBreakerConfig = DEFAULT_CIRCUIT_CONFIG): boolean {
+  const state = getCircuitState(provider);
+  
+  if (state.state === 'closed') {
+    return false;
+  }
+  
+  if (state.state === 'open') {
+    // Check if we should transition to half-open
+    if (Date.now() - state.lastFailure >= config.resetTimeout) {
+      state.state = 'half-open';
+      state.successCount = 0;
+      console.log(`Circuit breaker for ${provider}: OPEN -> HALF-OPEN`);
+      return false;
+    }
+    return true;
+  }
+  
+  // half-open - allow request through
+  return false;
+}
+
+function recordSuccess(provider: string, config: CircuitBreakerConfig = DEFAULT_CIRCUIT_CONFIG): void {
+  const state = getCircuitState(provider);
+  
+  if (state.state === 'half-open') {
+    state.successCount++;
+    if (state.successCount >= config.successThreshold) {
+      state.state = 'closed';
+      state.failures = 0;
+      state.successCount = 0;
+      console.log(`Circuit breaker for ${provider}: HALF-OPEN -> CLOSED`);
+    }
+  } else if (state.state === 'closed') {
+    // Reset failure count on success
+    state.failures = 0;
+  }
+}
+
+function recordFailure(provider: string, config: CircuitBreakerConfig = DEFAULT_CIRCUIT_CONFIG): void {
+  const state = getCircuitState(provider);
+  
+  state.failures++;
+  state.lastFailure = Date.now();
+  
+  if (state.state === 'half-open') {
+    // Any failure in half-open goes back to open
+    state.state = 'open';
+    console.log(`Circuit breaker for ${provider}: HALF-OPEN -> OPEN`);
+  } else if (state.state === 'closed' && state.failures >= config.failureThreshold) {
+    state.state = 'open';
+    console.log(`Circuit breaker for ${provider}: CLOSED -> OPEN (${state.failures} failures)`);
+  }
+}
+
+// ============================================================================
+// Exponential Backoff Retry
+// ============================================================================
+
+interface RetryConfig {
+  maxRetries: number;
+  baseDelay: number;      // Initial delay in ms
+  maxDelay: number;       // Maximum delay in ms
+  backoffMultiplier: number;
+}
+
+const DEFAULT_RETRY_CONFIG: RetryConfig = {
+  maxRetries: 3,
+  baseDelay: 1000,     // 1 second
+  maxDelay: 10000,     // 10 seconds
+  backoffMultiplier: 2,
+};
+
+function calculateBackoffDelay(attempt: number, config: RetryConfig = DEFAULT_RETRY_CONFIG): number {
+  const delay = config.baseDelay * Math.pow(config.backoffMultiplier, attempt);
+  // Add jitter (±20%) to prevent thundering herd
+  const jitter = delay * 0.2 * (Math.random() * 2 - 1);
+  return Math.min(delay + jitter, config.maxDelay);
+}
+
+async function sleep(ms: number): Promise<void> {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+async function retryWithBackoff<T>(
+  fn: () => Promise<T>,
+  provider: string,
+  config: RetryConfig = DEFAULT_RETRY_CONFIG
+): Promise<T> {
+  let lastError: Error | null = null;
+  
+  for (let attempt = 0; attempt <= config.maxRetries; attempt++) {
+    // Check circuit breaker before attempting
+    if (isCircuitOpen(provider)) {
+      throw new Error(`Circuit breaker OPEN for ${provider}. Service temporarily unavailable.`);
+    }
+    
+    try {
+      const result = await fn();
+      recordSuccess(provider);
+      return result;
+    } catch (error) {
+      lastError = error;
+      recordFailure(provider);
+      
+      if (attempt < config.maxRetries) {
+        const delay = calculateBackoffDelay(attempt);
+        console.log(`Retry attempt ${attempt + 1}/${config.maxRetries} for ${provider} in ${Math.round(delay)}ms`);
+        await sleep(delay);
+      }
+    }
+  }
+  
+  throw lastError || new Error(`Failed after ${config.maxRetries} retries`);
+}
+
+// ============================================================================
+// Business Logic Types
+// ============================================================================
+
 interface BusinessIdeaInput {
   companyName: string;
   industry: string;
@@ -50,16 +208,21 @@ interface SectionResult {
   content: string;
   latencyMs: number;
   fromCache: boolean;
+  retryCount: number;
 }
 
 interface GenerationMetrics {
   totalTimeMs: number;
   cacheHits: number;
   cacheMisses: number;
-  sectionMetrics: Record<string, { latencyMs: number; success: boolean; fromCache: boolean }>;
+  totalRetries: number;
+  sectionMetrics: Record<string, { latencyMs: number; success: boolean; fromCache: boolean; retries: number }>;
 }
 
-// Simple hash function for cache keys
+// ============================================================================
+// Caching Functions
+// ============================================================================
+
 async function hashInput(input: string): Promise<string> {
   const encoder = new TextEncoder();
   const data = encoder.encode(input);
@@ -68,184 +231,6 @@ async function hashInput(input: string): Promise<string> {
   return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
 }
 
-// SSE helper to send events
-function sendSSE(controller: ReadableStreamDefaultController, type: string, data: any) {
-  const event = `data: ${JSON.stringify({ type, ...data })}\n\n`;
-  controller.enqueue(new TextEncoder().encode(event));
-}
-
-serve(async (req) => {
-  if (req.method === 'OPTIONS') {
-    return new Response(null, { headers: corsHeaders });
-  }
-
-  try {
-    const startTime = Date.now();
-    
-    const lovableApiKey = Deno.env.get('LOVABLE_API_KEY');
-    if (!lovableApiKey) {
-      throw new Error('Lovable AI API key not configured');
-    }
-
-    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
-    const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-    const supabase = createClient(supabaseUrl, supabaseServiceKey);
-
-    // Get user from JWT
-    const authHeader = req.headers.get('Authorization')!;
-    const token = authHeader.replace('Bearer ', '');
-    const { data: { user }, error: authError } = await supabase.auth.getUser(token);
-    
-    if (authError || !user) {
-      return new Response(JSON.stringify({ error: 'Unauthorized' }), {
-        status: 401,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-      });
-    }
-
-    const { businessIdea, companyId, skipCache = false, stream = false }: { 
-      businessIdea: BusinessIdeaInput; 
-      companyId: string;
-      skipCache?: boolean;
-      stream?: boolean;
-    } = await req.json();
-
-    console.log('Generating business plan for:', businessIdea.companyName);
-    console.log('Streaming mode:', stream);
-    console.log('Cache enabled:', !skipCache);
-
-    // If streaming is requested, return SSE response
-    if (stream) {
-      const streamResponse = new ReadableStream({
-        async start(controller) {
-          try {
-            // Generate with streaming progress
-            const { sections, metrics } = await generateBusinessPlanSectionsWithStreaming(
-              supabase,
-              lovableApiKey,
-              businessIdea,
-              !skipCache,
-              controller
-            );
-
-            // Save the business plan to database
-            const { data: businessPlan, error: insertError } = await supabase
-              .from('business_plans')
-              .insert({
-                company_id: companyId,
-                title: `${businessIdea.companyName} Business Plan`,
-                description: `AI-generated business plan for ${businessIdea.companyName}`,
-                executive_summary: sections.executiveSummary,
-                market_analysis: sections.marketAnalysis,
-                competitive_analysis: sections.competitiveAnalysis,
-                marketing_strategy: sections.marketingStrategy,
-                operations_plan: sections.operationsPlan,
-                financial_projections: sections.financialProjections,
-                funding_requirements: businessIdea.fundingGoal || null,
-                status: 'draft',
-                ai_generated: true
-              })
-              .select()
-              .single();
-
-            if (insertError) {
-              console.error('Database insert error:', insertError);
-              sendSSE(controller, 'error', { message: 'Failed to save business plan' });
-            } else {
-              sendSSE(controller, 'complete', { 
-                businessPlanId: businessPlan.id,
-                metrics: {
-                  totalTimeMs: Date.now() - startTime,
-                  cacheHits: metrics.cacheHits,
-                  cacheMisses: metrics.cacheMisses
-                }
-              });
-              console.log('Business plan generated successfully:', businessPlan.id);
-            }
-          } catch (error) {
-            console.error('Streaming error:', error);
-            sendSSE(controller, 'error', { message: error.message || 'Generation failed' });
-          } finally {
-            controller.close();
-          }
-        }
-      });
-
-      return new Response(streamResponse, {
-        headers: {
-          ...corsHeaders,
-          'Content-Type': 'text/event-stream',
-          'Cache-Control': 'no-cache',
-          'Connection': 'keep-alive',
-        }
-      });
-    }
-
-    // Non-streaming mode (original behavior)
-    const { sections, metrics } = await generateBusinessPlanSectionsParallel(
-      supabase,
-      lovableApiKey, 
-      businessIdea,
-      !skipCache
-    );
-
-    const totalTimeMs = Date.now() - startTime;
-    console.log(`Total generation time: ${totalTimeMs}ms`);
-    console.log(`Cache hits: ${metrics.cacheHits}/${metrics.cacheHits + metrics.cacheMisses}`);
-
-    // Save the business plan to database
-    const { data: businessPlan, error: insertError } = await supabase
-      .from('business_plans')
-      .insert({
-        company_id: companyId,
-        title: `${businessIdea.companyName} Business Plan`,
-        description: `AI-generated business plan for ${businessIdea.companyName}`,
-        executive_summary: sections.executiveSummary,
-        market_analysis: sections.marketAnalysis,
-        competitive_analysis: sections.competitiveAnalysis,
-        marketing_strategy: sections.marketingStrategy,
-        operations_plan: sections.operationsPlan,
-        financial_projections: sections.financialProjections,
-        funding_requirements: businessIdea.fundingGoal || null,
-        status: 'draft',
-        ai_generated: true
-      })
-      .select()
-      .single();
-
-    if (insertError) {
-      console.error('Database insert error:', insertError);
-      throw new Error('Failed to save business plan');
-    }
-
-    console.log('Business plan generated successfully:', businessPlan.id);
-
-    return new Response(JSON.stringify({ 
-      businessPlan,
-      businessPlanId: businessPlan.id,
-      message: 'Business plan generated successfully',
-      metrics: {
-        totalTimeMs,
-        cacheHits: metrics.cacheHits,
-        cacheMisses: metrics.cacheMisses,
-        sectionMetrics: metrics.sectionMetrics
-      }
-    }), {
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-    });
-
-  } catch (error) {
-    console.error('Error generating business plan:', error);
-    return new Response(JSON.stringify({ 
-      error: error.message || 'Failed to generate business plan'
-    }), {
-      status: 500,
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-    });
-  }
-});
-
-// Check cache for existing response
 async function checkCache(
   supabase: any,
   inputHash: string,
@@ -254,7 +239,7 @@ async function checkCache(
   try {
     const { data, error } = await supabase
       .from('cached_sections')
-      .select('id, content')
+      .select('id, content, hit_count')
       .eq('input_hash', inputHash)
       .eq('section_type', sectionType)
       .gt('expires_at', new Date().toISOString())
@@ -264,10 +249,10 @@ async function checkCache(
       return null;
     }
 
-    // Increment hit count asynchronously (don't await)
+    // Increment hit count asynchronously
     supabase
       .from('cached_sections')
-      .update({ hit_count: data.hit_count + 1 })
+      .update({ hit_count: (data.hit_count || 0) + 1 })
       .eq('id', data.id)
       .then(() => {});
 
@@ -277,7 +262,6 @@ async function checkCache(
   }
 }
 
-// Store response in cache
 async function storeInCache(
   supabase: any,
   inputHash: string,
@@ -302,32 +286,24 @@ async function storeInCache(
   }
 }
 
-// Helper function to generate a single section with timing and caching
-async function generateSection(
-  supabase: any,
+// ============================================================================
+// SSE Helper
+// ============================================================================
+
+function sendSSE(controller: ReadableStreamDefaultController, type: string, data: any) {
+  const event = `data: ${JSON.stringify({ type, ...data })}\n\n`;
+  controller.enqueue(new TextEncoder().encode(event));
+}
+
+// ============================================================================
+// AI Generation with Circuit Breaker
+// ============================================================================
+
+async function callAIProvider(
   apiKey: string,
-  sectionName: keyof BusinessPlanSections,
-  prompt: string,
-  useCache: boolean
-): Promise<SectionResult> {
-  const startTime = Date.now();
-  const inputHash = await hashInput(`${sectionName}:${prompt}`);
-  
-  // Check cache first
-  if (useCache) {
-    const cachedContent = await checkCache(supabase, inputHash, sectionName);
-    if (cachedContent) {
-      console.log(`Cache HIT for ${sectionName}`);
-      return {
-        section: sectionName,
-        content: cachedContent,
-        latencyMs: Date.now() - startTime,
-        fromCache: true
-      };
-    }
-    console.log(`Cache MISS for ${sectionName}`);
-  }
-  
+  sectionName: string,
+  prompt: string
+): Promise<string> {
   const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
     method: 'POST',
     headers: {
@@ -352,15 +328,58 @@ async function generateSection(
 
   if (!response.ok) {
     const errorText = await response.text();
-    console.error(`Lovable AI API error for ${sectionName}:`, response.status, errorText);
-    throw new Error(`Lovable AI API error for ${sectionName}: ${response.status} - ${errorText}`);
+    throw new Error(`AI API error for ${sectionName}: ${response.status} - ${errorText}`);
   }
 
   const data = await response.json();
-  const content = data.choices[0].message.content;
-  const latencyMs = Date.now() - startTime;
+  return data.choices[0].message.content;
+}
+
+async function generateSection(
+  supabase: any,
+  apiKey: string,
+  sectionName: keyof BusinessPlanSections,
+  prompt: string,
+  useCache: boolean
+): Promise<SectionResult> {
+  const startTime = Date.now();
+  const inputHash = await hashInput(`${sectionName}:${prompt}`);
   
-  console.log(`Section ${sectionName} generated in ${latencyMs}ms`);
+  // Check cache first
+  if (useCache) {
+    const cachedContent = await checkCache(supabase, inputHash, sectionName);
+    if (cachedContent) {
+      console.log(`Cache HIT for ${sectionName}`);
+      return {
+        section: sectionName,
+        content: cachedContent,
+        latencyMs: Date.now() - startTime,
+        fromCache: true,
+        retryCount: 0
+      };
+    }
+    console.log(`Cache MISS for ${sectionName}`);
+  }
+  
+  let retryCount = 0;
+  
+  // Use retry with backoff and circuit breaker
+  const content = await retryWithBackoff(
+    async () => {
+      retryCount++;
+      return callAIProvider(apiKey, sectionName, prompt);
+    },
+    'gemini-2.5-flash',
+    {
+      maxRetries: 3,
+      baseDelay: 1000,
+      maxDelay: 10000,
+      backoffMultiplier: 2
+    }
+  );
+  
+  const latencyMs = Date.now() - startTime;
+  console.log(`Section ${sectionName} generated in ${latencyMs}ms (${retryCount - 1} retries)`);
   
   // Store in cache asynchronously
   if (useCache) {
@@ -371,39 +390,15 @@ async function generateSection(
     section: sectionName,
     content,
     latencyMs,
-    fromCache: false
+    fromCache: false,
+    retryCount: retryCount - 1 // Subtract 1 because first attempt isn't a retry
   };
 }
 
-// Generate section with streaming events
-async function generateSectionWithStreaming(
-  supabase: any,
-  apiKey: string,
-  sectionName: keyof BusinessPlanSections,
-  prompt: string,
-  useCache: boolean,
-  controller: ReadableStreamDefaultController
-): Promise<SectionResult> {
-  sendSSE(controller, 'section_start', { section: sectionName });
-  
-  try {
-    const result = await generateSection(supabase, apiKey, sectionName, prompt, useCache);
-    sendSSE(controller, 'section_complete', { 
-      section: sectionName, 
-      latencyMs: result.latencyMs,
-      fromCache: result.fromCache 
-    });
-    return result;
-  } catch (error) {
-    sendSSE(controller, 'section_error', { 
-      section: sectionName, 
-      error: error.message 
-    });
-    throw error;
-  }
-}
+// ============================================================================
+// Prompt Building
+// ============================================================================
 
-// Build section prompts
 function buildSectionPrompts(businessIdea: BusinessIdeaInput): Record<keyof BusinessPlanSections, string> {
   return {
     executiveSummary: `Create a compelling executive summary for a business plan with these details:
@@ -523,7 +518,42 @@ function buildSectionPrompts(businessIdea: BusinessIdeaInput): Record<keyof Busi
   };
 }
 
-// Generate all sections in parallel with streaming progress
+// ============================================================================
+// Section Generation with Streaming
+// ============================================================================
+
+async function generateSectionWithStreaming(
+  supabase: any,
+  apiKey: string,
+  sectionName: keyof BusinessPlanSections,
+  prompt: string,
+  useCache: boolean,
+  controller: ReadableStreamDefaultController
+): Promise<SectionResult> {
+  sendSSE(controller, 'section_start', { section: sectionName });
+  
+  try {
+    const result = await generateSection(supabase, apiKey, sectionName, prompt, useCache);
+    sendSSE(controller, 'section_complete', { 
+      section: sectionName, 
+      latencyMs: result.latencyMs,
+      fromCache: result.fromCache,
+      retries: result.retryCount
+    });
+    return result;
+  } catch (error) {
+    sendSSE(controller, 'section_error', { 
+      section: sectionName, 
+      error: error.message 
+    });
+    throw error;
+  }
+}
+
+// ============================================================================
+// Parallel Generation
+// ============================================================================
+
 async function generateBusinessPlanSectionsWithStreaming(
   supabase: any,
   apiKey: string,
@@ -539,7 +569,6 @@ async function generateBusinessPlanSectionsWithStreaming(
 
   sendSSE(controller, 'generation_start', { sections: sectionNames });
 
-  // Execute all section generations in parallel with streaming updates
   const results = await Promise.allSettled(
     sectionNames.map(section => 
       generateSectionWithStreaming(supabase, apiKey, section, prompts[section], useCache, controller)
@@ -549,12 +578,12 @@ async function generateBusinessPlanSectionsWithStreaming(
   const parallelEndTime = Date.now();
   console.log(`All parallel requests completed in ${parallelEndTime - parallelStartTime}ms`);
 
-  // Process results and build sections object
   const sections: Partial<BusinessPlanSections> = {};
-  const sectionMetrics: Record<string, { latencyMs: number; success: boolean; fromCache: boolean }> = {};
+  const sectionMetrics: Record<string, { latencyMs: number; success: boolean; fromCache: boolean; retries: number }> = {};
   const errors: string[] = [];
   let cacheHits = 0;
   let cacheMisses = 0;
+  let totalRetries = 0;
 
   results.forEach((result, index) => {
     const sectionName = sectionNames[index];
@@ -564,8 +593,10 @@ async function generateBusinessPlanSectionsWithStreaming(
       sectionMetrics[sectionName] = {
         latencyMs: result.value.latencyMs,
         success: true,
-        fromCache: result.value.fromCache
+        fromCache: result.value.fromCache,
+        retries: result.value.retryCount
       };
+      totalRetries += result.value.retryCount;
       if (result.value.fromCache) {
         cacheHits++;
       } else {
@@ -577,7 +608,8 @@ async function generateBusinessPlanSectionsWithStreaming(
       sectionMetrics[sectionName] = {
         latencyMs: 0,
         success: false,
-        fromCache: false
+        fromCache: false,
+        retries: 0
       };
       cacheMisses++;
       sections[sectionName] = `[This section could not be generated. Please try regenerating the business plan or contact support if the issue persists.]`;
@@ -592,13 +624,13 @@ async function generateBusinessPlanSectionsWithStreaming(
     totalTimeMs: parallelEndTime - parallelStartTime,
     cacheHits,
     cacheMisses,
+    totalRetries,
     sectionMetrics
   };
 
   return { sections: sections as BusinessPlanSections, metrics };
 }
 
-// Generate all sections in parallel (non-streaming)
 async function generateBusinessPlanSectionsParallel(
   supabase: any,
   apiKey: string,
@@ -621,10 +653,11 @@ async function generateBusinessPlanSectionsParallel(
   console.log(`All parallel requests completed in ${parallelEndTime - parallelStartTime}ms`);
 
   const sections: Partial<BusinessPlanSections> = {};
-  const sectionMetrics: Record<string, { latencyMs: number; success: boolean; fromCache: boolean }> = {};
+  const sectionMetrics: Record<string, { latencyMs: number; success: boolean; fromCache: boolean; retries: number }> = {};
   const errors: string[] = [];
   let cacheHits = 0;
   let cacheMisses = 0;
+  let totalRetries = 0;
 
   results.forEach((result, index) => {
     const sectionName = sectionNames[index];
@@ -634,8 +667,10 @@ async function generateBusinessPlanSectionsParallel(
       sectionMetrics[sectionName] = {
         latencyMs: result.value.latencyMs,
         success: true,
-        fromCache: result.value.fromCache
+        fromCache: result.value.fromCache,
+        retries: result.value.retryCount
       };
+      totalRetries += result.value.retryCount;
       if (result.value.fromCache) {
         cacheHits++;
       } else {
@@ -647,7 +682,8 @@ async function generateBusinessPlanSectionsParallel(
       sectionMetrics[sectionName] = {
         latencyMs: 0,
         success: false,
-        fromCache: false
+        fromCache: false,
+        retries: 0
       };
       cacheMisses++;
       sections[sectionName] = `[This section could not be generated. Please try regenerating the business plan or contact support if the issue persists.]`;
@@ -662,8 +698,185 @@ async function generateBusinessPlanSectionsParallel(
     totalTimeMs: parallelEndTime - parallelStartTime,
     cacheHits,
     cacheMisses,
+    totalRetries,
     sectionMetrics
   };
 
   return { sections: sections as BusinessPlanSections, metrics };
 }
+
+// ============================================================================
+// Main Handler
+// ============================================================================
+
+serve(async (req) => {
+  if (req.method === 'OPTIONS') {
+    return new Response(null, { headers: corsHeaders });
+  }
+
+  try {
+    const startTime = Date.now();
+    
+    const lovableApiKey = Deno.env.get('LOVABLE_API_KEY');
+    if (!lovableApiKey) {
+      throw new Error('Lovable AI API key not configured');
+    }
+
+    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+    const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+    const supabase = createClient(supabaseUrl, supabaseServiceKey);
+
+    // Get user from JWT
+    const authHeader = req.headers.get('Authorization')!;
+    const token = authHeader.replace('Bearer ', '');
+    const { data: { user }, error: authError } = await supabase.auth.getUser(token);
+    
+    if (authError || !user) {
+      return new Response(JSON.stringify({ error: 'Unauthorized' }), {
+        status: 401,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      });
+    }
+
+    const { businessIdea, companyId, skipCache = false, stream = false }: { 
+      businessIdea: BusinessIdeaInput; 
+      companyId: string;
+      skipCache?: boolean;
+      stream?: boolean;
+    } = await req.json();
+
+    console.log('Generating business plan for:', businessIdea.companyName);
+    console.log('Streaming mode:', stream);
+    console.log('Cache enabled:', !skipCache);
+    console.log('Circuit breaker enabled: true');
+
+    // If streaming is requested, return SSE response
+    if (stream) {
+      const streamResponse = new ReadableStream({
+        async start(controller) {
+          try {
+            const { sections, metrics } = await generateBusinessPlanSectionsWithStreaming(
+              supabase,
+              lovableApiKey,
+              businessIdea,
+              !skipCache,
+              controller
+            );
+
+            const { data: businessPlan, error: insertError } = await supabase
+              .from('business_plans')
+              .insert({
+                company_id: companyId,
+                title: `${businessIdea.companyName} Business Plan`,
+                description: `AI-generated business plan for ${businessIdea.companyName}`,
+                executive_summary: sections.executiveSummary,
+                market_analysis: sections.marketAnalysis,
+                competitive_analysis: sections.competitiveAnalysis,
+                marketing_strategy: sections.marketingStrategy,
+                operations_plan: sections.operationsPlan,
+                financial_projections: sections.financialProjections,
+                funding_requirements: businessIdea.fundingGoal || null,
+                status: 'draft',
+                ai_generated: true
+              })
+              .select()
+              .single();
+
+            if (insertError) {
+              console.error('Database insert error:', insertError);
+              sendSSE(controller, 'error', { message: 'Failed to save business plan' });
+            } else {
+              sendSSE(controller, 'complete', { 
+                businessPlanId: businessPlan.id,
+                metrics: {
+                  totalTimeMs: Date.now() - startTime,
+                  cacheHits: metrics.cacheHits,
+                  cacheMisses: metrics.cacheMisses,
+                  totalRetries: metrics.totalRetries
+                }
+              });
+              console.log('Business plan generated successfully:', businessPlan.id);
+            }
+          } catch (error) {
+            console.error('Streaming error:', error);
+            sendSSE(controller, 'error', { message: error.message || 'Generation failed' });
+          } finally {
+            controller.close();
+          }
+        }
+      });
+
+      return new Response(streamResponse, {
+        headers: {
+          ...corsHeaders,
+          'Content-Type': 'text/event-stream',
+          'Cache-Control': 'no-cache',
+          'Connection': 'keep-alive',
+        }
+      });
+    }
+
+    // Non-streaming mode
+    const { sections, metrics } = await generateBusinessPlanSectionsParallel(
+      supabase,
+      lovableApiKey, 
+      businessIdea,
+      !skipCache
+    );
+
+    const totalTimeMs = Date.now() - startTime;
+    console.log(`Total generation time: ${totalTimeMs}ms`);
+    console.log(`Cache hits: ${metrics.cacheHits}/${metrics.cacheHits + metrics.cacheMisses}`);
+    console.log(`Total retries: ${metrics.totalRetries}`);
+
+    const { data: businessPlan, error: insertError } = await supabase
+      .from('business_plans')
+      .insert({
+        company_id: companyId,
+        title: `${businessIdea.companyName} Business Plan`,
+        description: `AI-generated business plan for ${businessIdea.companyName}`,
+        executive_summary: sections.executiveSummary,
+        market_analysis: sections.marketAnalysis,
+        competitive_analysis: sections.competitiveAnalysis,
+        marketing_strategy: sections.marketingStrategy,
+        operations_plan: sections.operationsPlan,
+        financial_projections: sections.financialProjections,
+        funding_requirements: businessIdea.fundingGoal || null,
+        status: 'draft',
+        ai_generated: true
+      })
+      .select()
+      .single();
+
+    if (insertError) {
+      console.error('Database insert error:', insertError);
+      throw new Error('Failed to save business plan');
+    }
+
+    console.log('Business plan generated successfully:', businessPlan.id);
+
+    return new Response(JSON.stringify({ 
+      businessPlan,
+      businessPlanId: businessPlan.id,
+      message: 'Business plan generated successfully',
+      metrics: {
+        totalTimeMs,
+        cacheHits: metrics.cacheHits,
+        cacheMisses: metrics.cacheMisses,
+        totalRetries: metrics.totalRetries,
+        sectionMetrics: metrics.sectionMetrics
+      }
+    }), {
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+    });
+
+  } catch (error) {
+    console.error('Error generating business plan:', error);
+    return new Response(JSON.stringify({ 
+      error: error.message || 'Failed to generate business plan'
+    }), {
+      status: 500,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+    });
+  }
+});

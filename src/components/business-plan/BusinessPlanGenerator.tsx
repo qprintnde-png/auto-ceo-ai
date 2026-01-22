@@ -10,6 +10,8 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
+import { useStreamingGeneration } from '@/hooks/useStreamingGeneration';
+import GenerationProgress from './GenerationProgress';
 import { Loader2, Sparkles, Edit } from 'lucide-react';
 
 interface BusinessPlan {
@@ -44,8 +46,8 @@ const businessIdeaSchema = z.object({
 });
 
 const BusinessPlanGenerator = ({ companyId, onPlanGenerated, editingPlan }: BusinessPlanGeneratorProps) => {
-  const [isGenerating, setIsGenerating] = useState(false);
   const { toast } = useToast();
+  const { sections, isGenerating, generatePlan, resetProgress } = useStreamingGeneration();
 
   const form = useForm<z.infer<typeof businessIdeaSchema>>({
     resolver: zodResolver(businessIdeaSchema),
@@ -79,7 +81,7 @@ const BusinessPlanGenerator = ({ companyId, onPlanGenerated, editingPlan }: Busi
   }, [editingPlan, form]);
 
   const onSubmit = async (values: z.infer<typeof businessIdeaSchema>) => {
-    setIsGenerating(true);
+    resetProgress();
 
     try {
       if (editingPlan) {
@@ -103,23 +105,33 @@ const BusinessPlanGenerator = ({ companyId, onPlanGenerated, editingPlan }: Busi
 
         onPlanGenerated(editingPlan.id);
       } else {
-        // Generate new plan
-        const { data, error } = await supabase.functions.invoke('generate-business-plan', {
-          body: {
-            companyId,
-            businessIdea: values,
-          },
-        });
+        // Generate new plan with streaming
+        const businessIdea = {
+          companyName: values.title,
+          industry: values.industry,
+          targetMarket: values.targetMarket,
+          businessModel: values.revenueModel || 'To be determined',
+          problemStatement: values.problemSolved,
+          solution: values.description,
+          uniqueSellingProposition: values.uniqueValue,
+          fundingGoal: parseFloat(values.fundingRequirements),
+          competitiveAdvantage: values.competitiveAdvantage,
+          revenueModel: values.revenueModel,
+        };
 
-        if (error) throw error;
-        if (data.error) throw new Error(data.error);
+        const { businessPlanId, error } = await generatePlan(companyId, businessIdea);
 
-        toast({
-          title: "Business Plan Generated!",
-          description: "Your AI-powered business plan has been created successfully.",
-        });
+        if (error) {
+          throw new Error(error);
+        }
 
-        onPlanGenerated(data.businessPlanId);
+        if (businessPlanId) {
+          toast({
+            title: "Business Plan Generated!",
+            description: "Your AI-powered business plan has been created successfully.",
+          });
+          onPlanGenerated(businessPlanId);
+        }
       }
     } catch (error: any) {
       console.error('Error with business plan:', error);
@@ -128,8 +140,6 @@ const BusinessPlanGenerator = ({ companyId, onPlanGenerated, editingPlan }: Busi
         description: error.message || `Failed to ${editingPlan ? 'update' : 'generate'} business plan. Please try again.`,
         variant: "destructive"
       });
-    } finally {
-      setIsGenerating(false);
     }
   };
 
@@ -148,8 +158,11 @@ const BusinessPlanGenerator = ({ companyId, onPlanGenerated, editingPlan }: Busi
       </CardHeader>
 
       <CardContent>
+        {/* Progress indicator */}
+        <GenerationProgress sections={sections} isGenerating={isGenerating} />
+        
         <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6 mt-6">
             <div className="grid gap-6">
               {/* Basic Information */}
               <div className="space-y-4">
@@ -162,7 +175,7 @@ const BusinessPlanGenerator = ({ companyId, onPlanGenerated, editingPlan }: Busi
                     <FormItem>
                       <FormLabel>Business Plan Title *</FormLabel>
                       <FormControl>
-                        <Input placeholder="e.g., SaaS Platform for Small Businesses" {...field} />
+                        <Input placeholder="e.g., SaaS Platform for Small Businesses" {...field} disabled={isGenerating} />
                       </FormControl>
                       <FormDescription>A clear, concise title for your business plan</FormDescription>
                       <FormMessage />
@@ -180,6 +193,7 @@ const BusinessPlanGenerator = ({ companyId, onPlanGenerated, editingPlan }: Busi
                         <Textarea 
                           placeholder="Describe your business in 2-3 sentences..."
                           className="min-h-[100px]"
+                          disabled={isGenerating}
                           {...field}
                         />
                       </FormControl>
@@ -195,7 +209,7 @@ const BusinessPlanGenerator = ({ companyId, onPlanGenerated, editingPlan }: Busi
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>Industry *</FormLabel>
-                      <Select onValueChange={field.onChange} value={field.value}>
+                      <Select onValueChange={field.onChange} value={field.value} disabled={isGenerating}>
                         <FormControl>
                           <SelectTrigger>
                             <SelectValue placeholder="Select your industry" />
@@ -233,6 +247,7 @@ const BusinessPlanGenerator = ({ companyId, onPlanGenerated, editingPlan }: Busi
                         <Textarea 
                           placeholder="Describe the problem your business addresses..."
                           className="min-h-[100px]"
+                          disabled={isGenerating}
                           {...field}
                         />
                       </FormControl>
@@ -252,6 +267,7 @@ const BusinessPlanGenerator = ({ companyId, onPlanGenerated, editingPlan }: Busi
                         <Textarea 
                           placeholder="What makes your solution unique and better?"
                           className="min-h-[100px]"
+                          disabled={isGenerating}
                           {...field}
                         />
                       </FormControl>
@@ -276,6 +292,7 @@ const BusinessPlanGenerator = ({ companyId, onPlanGenerated, editingPlan }: Busi
                         <Textarea 
                           placeholder="Who are your ideal customers? Be specific..."
                           className="min-h-[100px]"
+                          disabled={isGenerating}
                           {...field}
                         />
                       </FormControl>
@@ -295,6 +312,7 @@ const BusinessPlanGenerator = ({ companyId, onPlanGenerated, editingPlan }: Busi
                         <Textarea 
                           placeholder="What advantages do you have over competitors?"
                           className="min-h-[80px]"
+                          disabled={isGenerating}
                           {...field}
                         />
                       </FormControl>
@@ -319,6 +337,7 @@ const BusinessPlanGenerator = ({ companyId, onPlanGenerated, editingPlan }: Busi
                         <Textarea 
                           placeholder="How will you make money? (subscriptions, one-time sales, etc.)"
                           className="min-h-[80px]"
+                          disabled={isGenerating}
                           {...field}
                         />
                       </FormControl>
@@ -338,6 +357,7 @@ const BusinessPlanGenerator = ({ companyId, onPlanGenerated, editingPlan }: Busi
                         <Input 
                           type="number" 
                           placeholder="500000" 
+                          disabled={isGenerating}
                           {...field}
                         />
                       </FormControl>

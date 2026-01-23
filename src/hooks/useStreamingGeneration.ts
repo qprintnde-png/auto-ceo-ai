@@ -29,12 +29,19 @@ export function useStreamingGeneration(): UseStreamingGenerationReturn {
   const abortControllerRef = useRef<AbortController | null>(null);
 
   const resetProgress = useCallback(() => {
-    setSections(initialSections.map(s => ({ ...s, status: 'pending' })));
+    setSections(initialSections.map(s => ({ ...s, status: 'pending', providerId: undefined, fallbacksUsed: undefined })));
   }, []);
 
-  const updateSectionStatus = useCallback((name: string, status: SectionProgress['status']) => {
+  const updateSectionStatus = useCallback((
+    name: string, 
+    status: SectionProgress['status'],
+    providerId?: string,
+    fallbacksUsed?: number
+  ) => {
     setSections(prev => prev.map(s => 
-      s.name === name ? { ...s, status } : s
+      s.name === name 
+        ? { ...s, status, providerId, fallbacksUsed } 
+        : s
     ));
   }, []);
 
@@ -105,7 +112,9 @@ export function useStreamingGeneration(): UseStreamingGenerationReturn {
                   } else if (data.type === 'section_complete') {
                     updateSectionStatus(
                       data.section, 
-                      data.fromCache ? 'cached' : 'completed'
+                      data.fromCache ? 'cached' : 'completed',
+                      data.providerId,
+                      data.fallbacksUsed
                     );
                   } else if (data.type === 'section_error') {
                     updateSectionStatus(data.section, 'failed');

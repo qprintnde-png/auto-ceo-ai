@@ -162,6 +162,111 @@ async function retryWithBackoff<T>(
 }
 
 // ============================================================================
+// AI Provider Configuration & Intelligent Routing
+// ============================================================================
+
+interface AIProvider {
+  id: string;
+  name: string;
+  model: string;
+  endpoint: string;
+  strengths: string[];  // Section types this provider excels at
+  priority: number;     // Lower = higher priority
+  maxTokens: number;
+  costPerToken: number; // For future cost optimization
+}
+
+// Provider configuration with specializations
+const AI_PROVIDERS: AIProvider[] = [
+  {
+    id: 'gemini-flash',
+    name: 'Google Gemini Flash',
+    model: 'google/gemini-2.5-flash',
+    endpoint: 'https://ai.gateway.lovable.dev/v1/chat/completions',
+    strengths: ['executiveSummary', 'marketingStrategy', 'operationsPlan'],
+    priority: 1,
+    maxTokens: 2000,
+    costPerToken: 0.000001
+  },
+  {
+    id: 'gemini-pro',
+    name: 'Google Gemini Pro',
+    model: 'google/gemini-2.5-pro',
+    endpoint: 'https://ai.gateway.lovable.dev/v1/chat/completions',
+    strengths: ['marketAnalysis', 'competitiveAnalysis', 'financialProjections'],
+    priority: 2,
+    maxTokens: 2000,
+    costPerToken: 0.000003
+  },
+  {
+    id: 'gpt-5-mini',
+    name: 'OpenAI GPT-5 Mini',
+    model: 'openai/gpt-5-mini',
+    endpoint: 'https://ai.gateway.lovable.dev/v1/chat/completions',
+    strengths: ['executiveSummary', 'marketAnalysis', 'financialProjections'],
+    priority: 3,
+    maxTokens: 2000,
+    costPerToken: 0.000002
+  },
+  {
+    id: 'gpt-5-nano',
+    name: 'OpenAI GPT-5 Nano',
+    model: 'openai/gpt-5-nano',
+    endpoint: 'https://ai.gateway.lovable.dev/v1/chat/completions',
+    strengths: ['marketingStrategy', 'operationsPlan'],
+    priority: 4,
+    maxTokens: 1500,
+    costPerToken: 0.0000005
+  }
+];
+
+// Section to provider mapping with fallback chains
+interface ProviderChain {
+  primary: string;
+  fallbacks: string[];
+}
+
+const SECTION_PROVIDER_CHAINS: Record<string, ProviderChain> = {
+  executiveSummary: {
+    primary: 'gemini-flash',
+    fallbacks: ['gpt-5-mini', 'gemini-pro', 'gpt-5-nano']
+  },
+  marketAnalysis: {
+    primary: 'gemini-pro',
+    fallbacks: ['gpt-5-mini', 'gemini-flash', 'gpt-5-nano']
+  },
+  competitiveAnalysis: {
+    primary: 'gemini-pro',
+    fallbacks: ['gpt-5-mini', 'gemini-flash', 'gpt-5-nano']
+  },
+  marketingStrategy: {
+    primary: 'gemini-flash',
+    fallbacks: ['gpt-5-nano', 'gpt-5-mini', 'gemini-pro']
+  },
+  operationsPlan: {
+    primary: 'gemini-flash',
+    fallbacks: ['gpt-5-nano', 'gpt-5-mini', 'gemini-pro']
+  },
+  financialProjections: {
+    primary: 'gemini-pro',
+    fallbacks: ['gpt-5-mini', 'gemini-flash', 'gpt-5-nano']
+  }
+};
+
+function getProvider(providerId: string): AIProvider | undefined {
+  return AI_PROVIDERS.find(p => p.id === providerId);
+}
+
+function getProviderChain(sectionName: string): string[] {
+  const chain = SECTION_PROVIDER_CHAINS[sectionName];
+  if (!chain) {
+    // Default fallback chain if section not configured
+    return ['gemini-flash', 'gpt-5-mini', 'gemini-pro', 'gpt-5-nano'];
+  }
+  return [chain.primary, ...chain.fallbacks];
+}
+
+// ============================================================================
 // Business Logic Types
 // ============================================================================
 
@@ -209,6 +314,8 @@ interface SectionResult {
   latencyMs: number;
   fromCache: boolean;
   retryCount: number;
+  providerId: string;
+  fallbacksUsed: number;
 }
 
 interface GenerationMetrics {
@@ -216,7 +323,16 @@ interface GenerationMetrics {
   cacheHits: number;
   cacheMisses: number;
   totalRetries: number;
-  sectionMetrics: Record<string, { latencyMs: number; success: boolean; fromCache: boolean; retries: number }>;
+  totalFallbacks: number;
+  providerUsage: Record<string, number>;
+  sectionMetrics: Record<string, { 
+    latencyMs: number; 
+    success: boolean; 
+    fromCache: boolean; 
+    retries: number;
+    providerId: string;
+    fallbacksUsed: number;
+  }>;
 }
 
 // ============================================================================
@@ -296,22 +412,28 @@ function sendSSE(controller: ReadableStreamDefaultController, type: string, data
 }
 
 // ============================================================================
-// AI Generation with Circuit Breaker
+// AI Generation with Intelligent Fallback Chain
 // ============================================================================
 
-async function callAIProvider(
+interface ProviderCallResult {
+  content: string;
+  providerId: string;
+}
+
+async function callAIProviderDirect(
   apiKey: string,
+  provider: AIProvider,
   sectionName: string,
   prompt: string
 ): Promise<string> {
-  const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
+  const response = await fetch(provider.endpoint, {
     method: 'POST',
     headers: {
       'Authorization': `Bearer ${apiKey}`,
       'Content-Type': 'application/json',
     },
     body: JSON.stringify({
-      model: 'google/gemini-2.5-flash',
+      model: provider.model,
       messages: [
         {
           role: 'system',
@@ -322,17 +444,65 @@ async function callAIProvider(
           content: prompt
         }
       ],
-      max_completion_tokens: 1500
+      max_completion_tokens: provider.maxTokens
     }),
   });
 
   if (!response.ok) {
     const errorText = await response.text();
-    throw new Error(`AI API error for ${sectionName}: ${response.status} - ${errorText}`);
+    throw new Error(`${provider.name} error for ${sectionName}: ${response.status} - ${errorText}`);
   }
 
   const data = await response.json();
   return data.choices[0].message.content;
+}
+
+async function callWithFallbackChain(
+  apiKey: string,
+  sectionName: string,
+  prompt: string
+): Promise<ProviderCallResult> {
+  const providerChain = getProviderChain(sectionName);
+  const errors: string[] = [];
+  
+  for (const providerId of providerChain) {
+    const provider = getProvider(providerId);
+    if (!provider) {
+      console.warn(`Provider ${providerId} not found, skipping`);
+      continue;
+    }
+    
+    // Check circuit breaker for this provider
+    if (isCircuitOpen(providerId)) {
+      console.log(`Circuit breaker OPEN for ${providerId}, trying next provider`);
+      continue;
+    }
+    
+    try {
+      // Try this provider with retry logic
+      const content = await retryWithBackoff(
+        async () => callAIProviderDirect(apiKey, provider, sectionName, prompt),
+        providerId,
+        {
+          maxRetries: 2, // Fewer retries per provider since we have fallbacks
+          baseDelay: 500,
+          maxDelay: 5000,
+          backoffMultiplier: 2
+        }
+      );
+      
+      console.log(`✓ ${sectionName} generated successfully with ${provider.name}`);
+      return { content, providerId };
+    } catch (error) {
+      const errorMsg = error instanceof Error ? error.message : 'Unknown error';
+      console.warn(`✗ ${provider.name} failed for ${sectionName}: ${errorMsg}`);
+      errors.push(`${provider.name}: ${errorMsg}`);
+      // Continue to next provider in chain
+    }
+  }
+  
+  // All providers failed
+  throw new Error(`All providers failed for ${sectionName}. Errors: ${errors.join('; ')}`);
 }
 
 async function generateSection(
@@ -355,35 +525,32 @@ async function generateSection(
         content: cachedContent,
         latencyMs: Date.now() - startTime,
         fromCache: true,
-        retryCount: 0
+        retryCount: 0,
+        providerId: 'cache',
+        fallbacksUsed: 0
       };
     }
     console.log(`Cache MISS for ${sectionName}`);
   }
   
-  let retryCount = 0;
+  // Use intelligent fallback chain
+  const providerChain = getProviderChain(sectionName);
+  let fallbacksUsed = 0;
   
-  // Use retry with backoff and circuit breaker
-  const content = await retryWithBackoff(
-    async () => {
-      retryCount++;
-      return callAIProvider(apiKey, sectionName, prompt);
-    },
-    'gemini-2.5-flash',
-    {
-      maxRetries: 3,
-      baseDelay: 1000,
-      maxDelay: 10000,
-      backoffMultiplier: 2
-    }
-  );
+  const { content, providerId } = await callWithFallbackChain(apiKey, sectionName, prompt);
+  
+  // Calculate fallbacks used
+  const primaryProvider = providerChain[0];
+  if (providerId !== primaryProvider) {
+    fallbacksUsed = providerChain.indexOf(providerId);
+  }
   
   const latencyMs = Date.now() - startTime;
-  console.log(`Section ${sectionName} generated in ${latencyMs}ms (${retryCount - 1} retries)`);
+  console.log(`Section ${sectionName} generated in ${latencyMs}ms with ${providerId} (${fallbacksUsed} fallbacks)`);
   
   // Store in cache asynchronously
   if (useCache) {
-    storeInCache(supabase, inputHash, sectionName, 'gemini-2.5-flash', content);
+    storeInCache(supabase, inputHash, sectionName, providerId, content);
   }
   
   return {
@@ -391,7 +558,9 @@ async function generateSection(
     content,
     latencyMs,
     fromCache: false,
-    retryCount: retryCount - 1 // Subtract 1 because first attempt isn't a retry
+    retryCount: 0, // Retries are now handled per-provider internally
+    providerId,
+    fallbacksUsed
   };
 }
 
@@ -530,7 +699,12 @@ async function generateSectionWithStreaming(
   useCache: boolean,
   controller: ReadableStreamDefaultController
 ): Promise<SectionResult> {
-  sendSSE(controller, 'section_start', { section: sectionName });
+  const chain = getProviderChain(sectionName);
+  sendSSE(controller, 'section_start', { 
+    section: sectionName,
+    primaryProvider: chain[0],
+    fallbackProviders: chain.slice(1)
+  });
   
   try {
     const result = await generateSection(supabase, apiKey, sectionName, prompt, useCache);
@@ -538,7 +712,9 @@ async function generateSectionWithStreaming(
       section: sectionName, 
       latencyMs: result.latencyMs,
       fromCache: result.fromCache,
-      retries: result.retryCount
+      retries: result.retryCount,
+      providerId: result.providerId,
+      fallbacksUsed: result.fallbacksUsed
     });
     return result;
   } catch (error) {
@@ -579,11 +755,20 @@ async function generateBusinessPlanSectionsWithStreaming(
   console.log(`All parallel requests completed in ${parallelEndTime - parallelStartTime}ms`);
 
   const sections: Partial<BusinessPlanSections> = {};
-  const sectionMetrics: Record<string, { latencyMs: number; success: boolean; fromCache: boolean; retries: number }> = {};
+  const sectionMetrics: Record<string, { 
+    latencyMs: number; 
+    success: boolean; 
+    fromCache: boolean; 
+    retries: number;
+    providerId: string;
+    fallbacksUsed: number;
+  }> = {};
   const errors: string[] = [];
   let cacheHits = 0;
   let cacheMisses = 0;
   let totalRetries = 0;
+  let totalFallbacks = 0;
+  const providerUsage: Record<string, number> = {};
 
   results.forEach((result, index) => {
     const sectionName = sectionNames[index];
@@ -594,9 +779,17 @@ async function generateBusinessPlanSectionsWithStreaming(
         latencyMs: result.value.latencyMs,
         success: true,
         fromCache: result.value.fromCache,
-        retries: result.value.retryCount
+        retries: result.value.retryCount,
+        providerId: result.value.providerId,
+        fallbacksUsed: result.value.fallbacksUsed
       };
       totalRetries += result.value.retryCount;
+      totalFallbacks += result.value.fallbacksUsed;
+      
+      // Track provider usage
+      const providerId = result.value.providerId;
+      providerUsage[providerId] = (providerUsage[providerId] || 0) + 1;
+      
       if (result.value.fromCache) {
         cacheHits++;
       } else {
@@ -609,7 +802,9 @@ async function generateBusinessPlanSectionsWithStreaming(
         latencyMs: 0,
         success: false,
         fromCache: false,
-        retries: 0
+        retries: 0,
+        providerId: 'none',
+        fallbacksUsed: 0
       };
       cacheMisses++;
       sections[sectionName] = `[This section could not be generated. Please try regenerating the business plan or contact support if the issue persists.]`;
@@ -625,6 +820,8 @@ async function generateBusinessPlanSectionsWithStreaming(
     cacheHits,
     cacheMisses,
     totalRetries,
+    totalFallbacks,
+    providerUsage,
     sectionMetrics
   };
 
@@ -653,11 +850,20 @@ async function generateBusinessPlanSectionsParallel(
   console.log(`All parallel requests completed in ${parallelEndTime - parallelStartTime}ms`);
 
   const sections: Partial<BusinessPlanSections> = {};
-  const sectionMetrics: Record<string, { latencyMs: number; success: boolean; fromCache: boolean; retries: number }> = {};
+  const sectionMetrics: Record<string, { 
+    latencyMs: number; 
+    success: boolean; 
+    fromCache: boolean; 
+    retries: number;
+    providerId: string;
+    fallbacksUsed: number;
+  }> = {};
   const errors: string[] = [];
   let cacheHits = 0;
   let cacheMisses = 0;
   let totalRetries = 0;
+  let totalFallbacks = 0;
+  const providerUsage: Record<string, number> = {};
 
   results.forEach((result, index) => {
     const sectionName = sectionNames[index];
@@ -668,9 +874,17 @@ async function generateBusinessPlanSectionsParallel(
         latencyMs: result.value.latencyMs,
         success: true,
         fromCache: result.value.fromCache,
-        retries: result.value.retryCount
+        retries: result.value.retryCount,
+        providerId: result.value.providerId,
+        fallbacksUsed: result.value.fallbacksUsed
       };
       totalRetries += result.value.retryCount;
+      totalFallbacks += result.value.fallbacksUsed;
+      
+      // Track provider usage
+      const providerId = result.value.providerId;
+      providerUsage[providerId] = (providerUsage[providerId] || 0) + 1;
+      
       if (result.value.fromCache) {
         cacheHits++;
       } else {
@@ -683,7 +897,9 @@ async function generateBusinessPlanSectionsParallel(
         latencyMs: 0,
         success: false,
         fromCache: false,
-        retries: 0
+        retries: 0,
+        providerId: 'none',
+        fallbacksUsed: 0
       };
       cacheMisses++;
       sections[sectionName] = `[This section could not be generated. Please try regenerating the business plan or contact support if the issue persists.]`;
@@ -699,6 +915,8 @@ async function generateBusinessPlanSectionsParallel(
     cacheHits,
     cacheMisses,
     totalRetries,
+    totalFallbacks,
+    providerUsage,
     sectionMetrics
   };
 
@@ -748,6 +966,7 @@ serve(async (req) => {
     console.log('Generating business plan for:', businessIdea.companyName);
     console.log('Streaming mode:', stream);
     console.log('Cache enabled:', !skipCache);
+    console.log('Intelligent fallback chain enabled: true');
     console.log('Circuit breaker enabled: true');
 
     // If streaming is requested, return SSE response
@@ -792,7 +1011,9 @@ serve(async (req) => {
                   totalTimeMs: Date.now() - startTime,
                   cacheHits: metrics.cacheHits,
                   cacheMisses: metrics.cacheMisses,
-                  totalRetries: metrics.totalRetries
+                  totalRetries: metrics.totalRetries,
+                  totalFallbacks: metrics.totalFallbacks,
+                  providerUsage: metrics.providerUsage
                 }
               });
               console.log('Business plan generated successfully:', businessPlan.id);
@@ -828,6 +1049,8 @@ serve(async (req) => {
     console.log(`Total generation time: ${totalTimeMs}ms`);
     console.log(`Cache hits: ${metrics.cacheHits}/${metrics.cacheHits + metrics.cacheMisses}`);
     console.log(`Total retries: ${metrics.totalRetries}`);
+    console.log(`Total fallbacks: ${metrics.totalFallbacks}`);
+    console.log(`Provider usage:`, metrics.providerUsage);
 
     const { data: businessPlan, error: insertError } = await supabase
       .from('business_plans')
@@ -864,6 +1087,8 @@ serve(async (req) => {
         cacheHits: metrics.cacheHits,
         cacheMisses: metrics.cacheMisses,
         totalRetries: metrics.totalRetries,
+        totalFallbacks: metrics.totalFallbacks,
+        providerUsage: metrics.providerUsage,
         sectionMetrics: metrics.sectionMetrics
       }
     }), {

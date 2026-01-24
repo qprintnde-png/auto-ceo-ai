@@ -1,6 +1,6 @@
 import { useState, useCallback, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import type { SectionProgress } from '@/components/business-plan/GenerationProgress';
+import type { SectionProgress, QueueStatus } from '@/components/business-plan/GenerationProgress';
 
 interface StreamingGenerationResult {
   businessPlanId: string | null;
@@ -10,6 +10,7 @@ interface StreamingGenerationResult {
 interface UseStreamingGenerationReturn {
   sections: SectionProgress[];
   isGenerating: boolean;
+  queueStatus: QueueStatus | null;
   generatePlan: (companyId: string, businessIdea: any) => Promise<StreamingGenerationResult>;
   resetProgress: () => void;
 }
@@ -26,21 +27,30 @@ const initialSections: SectionProgress[] = [
 export function useStreamingGeneration(): UseStreamingGenerationReturn {
   const [sections, setSections] = useState<SectionProgress[]>(initialSections);
   const [isGenerating, setIsGenerating] = useState(false);
+  const [queueStatus, setQueueStatus] = useState<QueueStatus | null>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
 
   const resetProgress = useCallback(() => {
-    setSections(initialSections.map(s => ({ ...s, status: 'pending', providerId: undefined, fallbacksUsed: undefined })));
+    setSections(initialSections.map(s => ({ 
+      ...s, 
+      status: 'pending', 
+      providerId: undefined, 
+      fallbacksUsed: undefined,
+      queueWaitMs: undefined 
+    })));
+    setQueueStatus(null);
   }, []);
 
   const updateSectionStatus = useCallback((
     name: string, 
     status: SectionProgress['status'],
     providerId?: string,
-    fallbacksUsed?: number
+    fallbacksUsed?: number,
+    queueWaitMs?: number
   ) => {
     setSections(prev => prev.map(s => 
       s.name === name 
-        ? { ...s, status, providerId, fallbacksUsed } 
+        ? { ...s, status, providerId, fallbacksUsed, queueWaitMs } 
         : s
     ));
   }, []);
@@ -107,14 +117,33 @@ export function useStreamingGeneration(): UseStreamingGenerationReturn {
                 try {
                   const data = JSON.parse(line.slice(6));
                   
-                  if (data.type === 'section_start') {
+                  if (data.type === 'generation_start') {
+                    // Initialize queue status from the generation start event
+                    if (data.queueConfig) {
+                      setQueueStatus({
+                        depth: data.initialQueueStatus?.depth || 0,
+                        active: data.initialQueueStatus?.active || 0,
+                        maxConcurrent: data.queueConfig.maxConcurrent || 6,
+                        maxPerProvider: data.queueConfig.maxPerProvider || 3,
+                      });
+                    }
+                  } else if (data.type === 'section_start') {
                     updateSectionStatus(data.section, 'generating');
+                    // Update queue status with live data
+                    if (data.queueDepth !== undefined || data.activeRequests !== undefined) {
+                      setQueueStatus(prev => prev ? {
+                        ...prev,
+                        depth: data.queueDepth ?? prev.depth,
+                        active: data.activeRequests ?? prev.active,
+                      } : null);
+                    }
                   } else if (data.type === 'section_complete') {
                     updateSectionStatus(
                       data.section, 
                       data.fromCache ? 'cached' : 'completed',
                       data.providerId,
-                      data.fallbacksUsed
+                      data.fallbacksUsed,
+                      data.queueWaitMs
                     );
                   } else if (data.type === 'section_error') {
                     updateSectionStatus(data.section, 'failed');
@@ -175,6 +204,7 @@ export function useStreamingGeneration(): UseStreamingGenerationReturn {
   return {
     sections,
     isGenerating,
+    queueStatus,
     generatePlan,
     resetProgress,
   };

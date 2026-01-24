@@ -1,5 +1,5 @@
 import { Progress } from '@/components/ui/progress';
-import { CheckCircle2, Loader2, AlertCircle, Zap, Database } from 'lucide-react';
+import { CheckCircle2, Loader2, AlertCircle, Zap, Database, Clock, Layers } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
@@ -10,11 +10,20 @@ export interface SectionProgress {
   status: 'pending' | 'generating' | 'completed' | 'failed' | 'cached';
   providerId?: string;
   fallbacksUsed?: number;
+  queueWaitMs?: number;
+}
+
+export interface QueueStatus {
+  depth: number;
+  active: number;
+  maxConcurrent: number;
+  maxPerProvider: number;
 }
 
 interface GenerationProgressProps {
   sections: SectionProgress[];
   isGenerating: boolean;
+  queueStatus?: QueueStatus;
 }
 
 const sectionDisplayNames: Record<string, string> = {
@@ -34,12 +43,17 @@ const providerLabels: Record<string, { name: string; color: string }> = {
   'cache': { name: 'Cached', color: 'text-muted-foreground' },
 };
 
-const GenerationProgress = ({ sections, isGenerating }: GenerationProgressProps) => {
+const GenerationProgress = ({ sections, isGenerating, queueStatus }: GenerationProgressProps) => {
   const completedCount = sections.filter(
     s => s.status === 'completed' || s.status === 'cached'
   ).length;
+  const generatingCount = sections.filter(s => s.status === 'generating').length;
+  const pendingCount = sections.filter(s => s.status === 'pending').length;
   const progress = sections.length > 0 ? (completedCount / sections.length) * 100 : 0;
   const fallbacksUsed = sections.reduce((acc, s) => acc + (s.fallbacksUsed || 0), 0);
+  const avgQueueWait = sections
+    .filter(s => s.queueWaitMs && s.queueWaitMs > 0)
+    .reduce((acc, s, _, arr) => acc + (s.queueWaitMs || 0) / arr.length, 0);
 
   if (!isGenerating && completedCount === 0) {
     return null;
@@ -48,9 +62,46 @@ const GenerationProgress = ({ sections, isGenerating }: GenerationProgressProps)
   return (
     <TooltipProvider>
       <div className="space-y-4 p-6 bg-muted/30 rounded-lg border animate-in fade-in slide-in-from-top-2 duration-300">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
+        <div className="flex items-center justify-between flex-wrap gap-2">
+          <div className="flex items-center gap-2 flex-wrap">
             <h4 className="font-medium text-sm">Generating Business Plan</h4>
+            
+            {/* Queue Status Badge */}
+            {isGenerating && queueStatus && (
+              <Tooltip>
+                <TooltipTrigger>
+                  <Badge variant="secondary" className="text-[10px] gap-1">
+                    <Layers className="h-3 w-3" />
+                    {queueStatus.active}/{queueStatus.maxConcurrent} active
+                  </Badge>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <div className="text-xs space-y-1">
+                    <p className="font-medium">Request Queue Status</p>
+                    <p>Active requests: {queueStatus.active}/{queueStatus.maxConcurrent}</p>
+                    <p>Queued: {pendingCount} pending</p>
+                    <p>Max per provider: {queueStatus.maxPerProvider}</p>
+                  </div>
+                </TooltipContent>
+              </Tooltip>
+            )}
+
+            {/* Average Queue Wait Badge */}
+            {avgQueueWait > 100 && (
+              <Tooltip>
+                <TooltipTrigger>
+                  <Badge variant="outline" className="text-[10px] gap-1">
+                    <Clock className="h-3 w-3" />
+                    ~{Math.round(avgQueueWait)}ms wait
+                  </Badge>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>Average queue wait time: {Math.round(avgQueueWait)}ms</p>
+                </TooltipContent>
+              </Tooltip>
+            )}
+
+            {/* Fallbacks Badge */}
             {fallbacksUsed > 0 && (
               <Tooltip>
                 <TooltipTrigger>
@@ -65,9 +116,12 @@ const GenerationProgress = ({ sections, isGenerating }: GenerationProgressProps)
               </Tooltip>
             )}
           </div>
-          <span className="text-xs text-muted-foreground">
-            {completedCount}/{sections.length} sections
-          </span>
+          <div className="flex items-center gap-3 text-xs text-muted-foreground">
+            {isGenerating && generatingCount > 0 && (
+              <span className="text-primary">{generatingCount} processing</span>
+            )}
+            <span>{completedCount}/{sections.length} sections</span>
+          </div>
         </div>
         
         <Progress value={progress} className="h-2" />
@@ -118,15 +172,20 @@ const GenerationProgress = ({ sections, isGenerating }: GenerationProgressProps)
                 <TooltipContent side="bottom" className="text-xs">
                   {section.status === 'generating' && <p>Generating with AI...</p>}
                   {section.status === 'completed' && providerInfo && (
-                    <p>Generated by <span className={providerInfo.color}>{providerInfo.name}</span>
-                      {section.fallbacksUsed && section.fallbacksUsed > 0 && (
-                        <span className="text-muted-foreground"> (via fallback)</span>
+                    <div className="space-y-1">
+                      <p>Generated by <span className={providerInfo.color}>{providerInfo.name}</span>
+                        {section.fallbacksUsed && section.fallbacksUsed > 0 && (
+                          <span className="text-muted-foreground"> (via fallback)</span>
+                        )}
+                      </p>
+                      {section.queueWaitMs && section.queueWaitMs > 50 && (
+                        <p className="text-muted-foreground">Queue wait: {section.queueWaitMs}ms</p>
                       )}
-                    </p>
+                    </div>
                   )}
-                  {section.status === 'cached' && <p>Retrieved from cache</p>}
+                  {section.status === 'cached' && <p>Retrieved from cache (bypassed queue)</p>}
                   {section.status === 'failed' && <p>Generation failed</p>}
-                  {section.status === 'pending' && <p>Waiting to start</p>}
+                  {section.status === 'pending' && <p>Queued, waiting to start</p>}
                 </TooltipContent>
               </Tooltip>
             );

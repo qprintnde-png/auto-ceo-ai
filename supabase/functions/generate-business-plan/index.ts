@@ -162,6 +162,263 @@ async function retryWithBackoff<T>(
 }
 
 // ============================================================================
+// Request Queue System
+// ============================================================================
+
+interface QueueConfig {
+  maxConcurrentRequests: number;    // Global max concurrent requests
+  maxPerProvider: number;           // Max concurrent per provider
+  priorityLevels: number;           // Number of priority levels (higher = more important)
+  queueTimeout: number;             // Max time to wait in queue (ms)
+}
+
+const DEFAULT_QUEUE_CONFIG: QueueConfig = {
+  maxConcurrentRequests: 6,         // Max 6 concurrent AI calls
+  maxPerProvider: 3,                // Max 3 concurrent per provider
+  priorityLevels: 3,
+  queueTimeout: 60000,              // 60 second queue timeout
+};
+
+// Section priority mapping (higher = more important, processed first)
+const SECTION_PRIORITY: Record<string, number> = {
+  executiveSummary: 3,      // Highest - users see this first
+  financialProjections: 3,  // High - critical for investors
+  marketAnalysis: 2,        // Medium
+  competitiveAnalysis: 2,   // Medium
+  marketingStrategy: 1,     // Lower
+  operationsPlan: 1,        // Lower
+};
+
+interface QueuedRequest<T> {
+  id: string;
+  priority: number;
+  provider: string;
+  section: string;
+  execute: () => Promise<T>;
+  resolve: (value: T) => void;
+  reject: (error: Error) => void;
+  queuedAt: number;
+  startedAt?: number;
+}
+
+interface QueueMetrics {
+  totalQueued: number;
+  totalProcessed: number;
+  totalRejected: number;
+  averageWaitTime: number;
+  averageProcessTime: number;
+  currentQueueDepth: number;
+  currentActive: number;
+  activeByProvider: Record<string, number>;
+  peakQueueDepth: number;
+  peakConcurrent: number;
+}
+
+class RequestQueue {
+  private queue: QueuedRequest<any>[] = [];
+  private activeRequests: Map<string, QueuedRequest<any>> = new Map();
+  private activeByProvider: Map<string, number> = new Map();
+  private config: QueueConfig;
+  private metrics: QueueMetrics = {
+    totalQueued: 0,
+    totalProcessed: 0,
+    totalRejected: 0,
+    averageWaitTime: 0,
+    averageProcessTime: 0,
+    currentQueueDepth: 0,
+    currentActive: 0,
+    activeByProvider: {},
+    peakQueueDepth: 0,
+    peakConcurrent: 0,
+  };
+  private waitTimes: number[] = [];
+  private processTimes: number[] = [];
+  private processing = false;
+
+  constructor(config: QueueConfig = DEFAULT_QUEUE_CONFIG) {
+    this.config = config;
+  }
+
+  async enqueue<T>(
+    provider: string,
+    section: string,
+    execute: () => Promise<T>
+  ): Promise<T> {
+    const priority = SECTION_PRIORITY[section] || 1;
+    const id = `${section}-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+    
+    return new Promise<T>((resolve, reject) => {
+      const request: QueuedRequest<T> = {
+        id,
+        priority,
+        provider,
+        section,
+        execute,
+        resolve,
+        reject,
+        queuedAt: Date.now(),
+      };
+
+      // Insert in priority order (higher priority first)
+      let inserted = false;
+      for (let i = 0; i < this.queue.length; i++) {
+        if (this.queue[i].priority < priority) {
+          this.queue.splice(i, 0, request);
+          inserted = true;
+          break;
+        }
+      }
+      if (!inserted) {
+        this.queue.push(request);
+      }
+
+      this.metrics.totalQueued++;
+      this.metrics.currentQueueDepth = this.queue.length;
+      this.metrics.peakQueueDepth = Math.max(this.metrics.peakQueueDepth, this.queue.length);
+      
+      console.log(`[Queue] Enqueued ${section} (priority: ${priority}, queue depth: ${this.queue.length})`);
+
+      // Start processing if not already
+      this.processQueue();
+
+      // Set timeout for this request
+      setTimeout(() => {
+        const index = this.queue.findIndex(r => r.id === id);
+        if (index !== -1) {
+          this.queue.splice(index, 1);
+          this.metrics.totalRejected++;
+          this.metrics.currentQueueDepth = this.queue.length;
+          reject(new Error(`Request for ${section} timed out waiting in queue`));
+          console.warn(`[Queue] Request ${section} timed out after ${this.config.queueTimeout}ms`);
+        }
+      }, this.config.queueTimeout);
+    });
+  }
+
+  private async processQueue(): Promise<void> {
+    if (this.processing) return;
+    this.processing = true;
+
+    while (this.queue.length > 0) {
+      // Check global concurrency limit
+      if (this.activeRequests.size >= this.config.maxConcurrentRequests) {
+        await sleep(50); // Small delay before checking again
+        continue;
+      }
+
+      // Find next eligible request (respecting per-provider limits)
+      const nextIndex = this.findNextEligibleRequest();
+      if (nextIndex === -1) {
+        await sleep(50);
+        continue;
+      }
+
+      const request = this.queue.splice(nextIndex, 1)[0];
+      this.metrics.currentQueueDepth = this.queue.length;
+      
+      // Track active request
+      this.activeRequests.set(request.id, request);
+      const providerCount = (this.activeByProvider.get(request.provider) || 0) + 1;
+      this.activeByProvider.set(request.provider, providerCount);
+      
+      this.metrics.currentActive = this.activeRequests.size;
+      this.metrics.peakConcurrent = Math.max(this.metrics.peakConcurrent, this.activeRequests.size);
+      this.updateActiveByProviderMetrics();
+
+      request.startedAt = Date.now();
+      const waitTime = request.startedAt - request.queuedAt;
+      this.waitTimes.push(waitTime);
+      
+      console.log(`[Queue] Processing ${request.section} (waited: ${waitTime}ms, active: ${this.activeRequests.size}/${this.config.maxConcurrentRequests})`);
+
+      // Execute the request (don't await - let it run in background)
+      this.executeRequest(request);
+    }
+
+    this.processing = false;
+  }
+
+  private findNextEligibleRequest(): number {
+    for (let i = 0; i < this.queue.length; i++) {
+      const request = this.queue[i];
+      const providerActive = this.activeByProvider.get(request.provider) || 0;
+      
+      if (providerActive < this.config.maxPerProvider) {
+        return i;
+      }
+    }
+    return -1;
+  }
+
+  private async executeRequest<T>(request: QueuedRequest<T>): Promise<void> {
+    try {
+      const result = await request.execute();
+      
+      const processTime = Date.now() - (request.startedAt || request.queuedAt);
+      this.processTimes.push(processTime);
+      this.metrics.totalProcessed++;
+      
+      console.log(`[Queue] Completed ${request.section} in ${processTime}ms`);
+      request.resolve(result);
+    } catch (error) {
+      console.error(`[Queue] Failed ${request.section}:`, error);
+      request.reject(error instanceof Error ? error : new Error(String(error)));
+    } finally {
+      // Remove from active tracking
+      this.activeRequests.delete(request.id);
+      const providerCount = (this.activeByProvider.get(request.provider) || 1) - 1;
+      this.activeByProvider.set(request.provider, Math.max(0, providerCount));
+      
+      this.metrics.currentActive = this.activeRequests.size;
+      this.updateActiveByProviderMetrics();
+      this.updateAverages();
+      
+      // Trigger next batch processing
+      this.processQueue();
+    }
+  }
+
+  private updateActiveByProviderMetrics(): void {
+    this.metrics.activeByProvider = {};
+    this.activeByProvider.forEach((count, provider) => {
+      if (count > 0) {
+        this.metrics.activeByProvider[provider] = count;
+      }
+    });
+  }
+
+  private updateAverages(): void {
+    if (this.waitTimes.length > 0) {
+      const recentWaits = this.waitTimes.slice(-50); // Last 50 requests
+      this.metrics.averageWaitTime = Math.round(
+        recentWaits.reduce((a, b) => a + b, 0) / recentWaits.length
+      );
+    }
+    if (this.processTimes.length > 0) {
+      const recentProcess = this.processTimes.slice(-50);
+      this.metrics.averageProcessTime = Math.round(
+        recentProcess.reduce((a, b) => a + b, 0) / recentProcess.length
+      );
+    }
+  }
+
+  getMetrics(): QueueMetrics {
+    return { ...this.metrics };
+  }
+
+  getQueueStatus(): { depth: number; active: number; providers: Record<string, number> } {
+    return {
+      depth: this.queue.length,
+      active: this.activeRequests.size,
+      providers: { ...Object.fromEntries(this.activeByProvider) }
+    };
+  }
+}
+
+// Global request queue instance
+const requestQueue = new RequestQueue();
+
+// ============================================================================
 // AI Provider Configuration & Intelligent Routing
 // ============================================================================
 
@@ -316,6 +573,7 @@ interface SectionResult {
   retryCount: number;
   providerId: string;
   fallbacksUsed: number;
+  queueWaitMs: number;
 }
 
 interface GenerationMetrics {
@@ -332,7 +590,16 @@ interface GenerationMetrics {
     retries: number;
     providerId: string;
     fallbacksUsed: number;
+    queueWaitMs: number;
   }>;
+  queueMetrics: {
+    peakQueueDepth: number;
+    peakConcurrent: number;
+    averageWaitTime: number;
+    averageProcessTime: number;
+    totalQueued: number;
+    totalProcessed: number;
+  };
 }
 
 // ============================================================================
@@ -515,7 +782,7 @@ async function generateSection(
   const startTime = Date.now();
   const inputHash = await hashInput(`${sectionName}:${prompt}`);
   
-  // Check cache first
+  // Check cache first (cache checks bypass queue)
   if (useCache) {
     const cachedContent = await checkCache(supabase, inputHash, sectionName);
     if (cachedContent) {
@@ -527,40 +794,130 @@ async function generateSection(
         fromCache: true,
         retryCount: 0,
         providerId: 'cache',
-        fallbacksUsed: 0
+        fallbacksUsed: 0,
+        queueWaitMs: 0
       };
     }
     console.log(`Cache MISS for ${sectionName}`);
   }
   
-  // Use intelligent fallback chain
+  // Get primary provider for queue tracking
   const providerChain = getProviderChain(sectionName);
-  let fallbacksUsed = 0;
-  
-  const { content, providerId } = await callWithFallbackChain(apiKey, sectionName, prompt);
-  
-  // Calculate fallbacks used
   const primaryProvider = providerChain[0];
-  if (providerId !== primaryProvider) {
-    fallbacksUsed = providerChain.indexOf(providerId);
-  }
   
+  // Queue the AI request with priority-based scheduling
+  const queueStartTime = Date.now();
+  
+  const result = await requestQueue.enqueue(
+    primaryProvider,
+    sectionName,
+    async () => {
+      const { content, providerId } = await callWithFallbackChain(apiKey, sectionName, prompt);
+      
+      // Calculate fallbacks used
+      let fallbacksUsed = 0;
+      if (providerId !== primaryProvider) {
+        fallbacksUsed = providerChain.indexOf(providerId);
+      }
+      
+      return { content, providerId, fallbacksUsed };
+    }
+  );
+  
+  const queueWaitMs = Date.now() - queueStartTime - (Date.now() - queueStartTime);
   const latencyMs = Date.now() - startTime;
-  console.log(`Section ${sectionName} generated in ${latencyMs}ms with ${providerId} (${fallbacksUsed} fallbacks)`);
+  
+  console.log(`Section ${sectionName} generated in ${latencyMs}ms with ${result.providerId} (${result.fallbacksUsed} fallbacks)`);
   
   // Store in cache asynchronously
   if (useCache) {
-    storeInCache(supabase, inputHash, sectionName, providerId, content);
+    storeInCache(supabase, inputHash, sectionName, result.providerId, result.content);
   }
   
   return {
     section: sectionName,
-    content,
+    content: result.content,
     latencyMs,
     fromCache: false,
-    retryCount: 0, // Retries are now handled per-provider internally
-    providerId,
-    fallbacksUsed
+    retryCount: 0,
+    providerId: result.providerId,
+    fallbacksUsed: result.fallbacksUsed,
+    queueWaitMs: Date.now() - queueStartTime - latencyMs + (Date.now() - startTime - latencyMs)
+  };
+}
+
+// Helper to calculate actual queue wait time
+async function generateSectionQueued(
+  supabase: any,
+  apiKey: string,
+  sectionName: keyof BusinessPlanSections,
+  prompt: string,
+  useCache: boolean
+): Promise<SectionResult> {
+  const overallStart = Date.now();
+  const inputHash = await hashInput(`${sectionName}:${prompt}`);
+  
+  // Check cache first (bypasses queue entirely)
+  if (useCache) {
+    const cachedContent = await checkCache(supabase, inputHash, sectionName);
+    if (cachedContent) {
+      console.log(`Cache HIT for ${sectionName}`);
+      return {
+        section: sectionName,
+        content: cachedContent,
+        latencyMs: Date.now() - overallStart,
+        fromCache: true,
+        retryCount: 0,
+        providerId: 'cache',
+        fallbacksUsed: 0,
+        queueWaitMs: 0
+      };
+    }
+    console.log(`Cache MISS for ${sectionName}`);
+  }
+  
+  const providerChain = getProviderChain(sectionName);
+  const primaryProvider = providerChain[0];
+  const queueEnterTime = Date.now();
+  
+  // This promise resolves when the request actually starts processing
+  let processingStartTime = 0;
+  
+  const result = await requestQueue.enqueue(
+    primaryProvider,
+    sectionName,
+    async () => {
+      processingStartTime = Date.now();
+      const { content, providerId } = await callWithFallbackChain(apiKey, sectionName, prompt);
+      
+      let fallbacksUsed = 0;
+      if (providerId !== primaryProvider) {
+        fallbacksUsed = providerChain.indexOf(providerId);
+      }
+      
+      return { content, providerId, fallbacksUsed };
+    }
+  );
+  
+  const queueWaitMs = processingStartTime - queueEnterTime;
+  const latencyMs = Date.now() - overallStart;
+  
+  console.log(`Section ${sectionName}: total=${latencyMs}ms, queueWait=${queueWaitMs}ms, provider=${result.providerId}`);
+  
+  // Store in cache asynchronously
+  if (useCache) {
+    storeInCache(supabase, inputHash, sectionName, result.providerId, result.content);
+  }
+  
+  return {
+    section: sectionName,
+    content: result.content,
+    latencyMs,
+    fromCache: false,
+    retryCount: 0,
+    providerId: result.providerId,
+    fallbacksUsed: result.fallbacksUsed,
+    queueWaitMs
   };
 }
 
@@ -700,21 +1057,27 @@ async function generateSectionWithStreaming(
   controller: ReadableStreamDefaultController
 ): Promise<SectionResult> {
   const chain = getProviderChain(sectionName);
+  const queueStatus = requestQueue.getQueueStatus();
+  
   sendSSE(controller, 'section_start', { 
     section: sectionName,
     primaryProvider: chain[0],
-    fallbackProviders: chain.slice(1)
+    fallbackProviders: chain.slice(1),
+    priority: SECTION_PRIORITY[sectionName] || 1,
+    queueDepth: queueStatus.depth,
+    activeRequests: queueStatus.active
   });
   
   try {
-    const result = await generateSection(supabase, apiKey, sectionName, prompt, useCache);
+    const result = await generateSectionQueued(supabase, apiKey, sectionName, prompt, useCache);
     sendSSE(controller, 'section_complete', { 
       section: sectionName, 
       latencyMs: result.latencyMs,
       fromCache: result.fromCache,
       retries: result.retryCount,
       providerId: result.providerId,
-      fallbacksUsed: result.fallbacksUsed
+      fallbacksUsed: result.fallbacksUsed,
+      queueWaitMs: result.queueWaitMs
     });
     return result;
   } catch (error) {
@@ -740,10 +1103,20 @@ async function generateBusinessPlanSectionsWithStreaming(
   const prompts = buildSectionPrompts(businessIdea);
   const sectionNames = Object.keys(prompts) as (keyof BusinessPlanSections)[];
   
-  console.log(`Starting parallel generation with streaming of ${sectionNames.length} sections...`);
+  console.log(`Starting queued parallel generation with streaming of ${sectionNames.length} sections...`);
+  console.log(`Queue config: max concurrent=${DEFAULT_QUEUE_CONFIG.maxConcurrentRequests}, max per provider=${DEFAULT_QUEUE_CONFIG.maxPerProvider}`);
   const parallelStartTime = Date.now();
 
-  sendSSE(controller, 'generation_start', { sections: sectionNames });
+  const initialQueueStatus = requestQueue.getQueueStatus();
+  sendSSE(controller, 'generation_start', { 
+    sections: sectionNames,
+    queueConfig: {
+      maxConcurrent: DEFAULT_QUEUE_CONFIG.maxConcurrentRequests,
+      maxPerProvider: DEFAULT_QUEUE_CONFIG.maxPerProvider,
+      priorityLevels: DEFAULT_QUEUE_CONFIG.priorityLevels
+    },
+    initialQueueStatus: initialQueueStatus
+  });
 
   const results = await Promise.allSettled(
     sectionNames.map(section => 
@@ -752,7 +1125,9 @@ async function generateBusinessPlanSectionsWithStreaming(
   );
 
   const parallelEndTime = Date.now();
+  const finalQueueMetrics = requestQueue.getMetrics();
   console.log(`All parallel requests completed in ${parallelEndTime - parallelStartTime}ms`);
+  console.log(`Queue metrics: peak depth=${finalQueueMetrics.peakQueueDepth}, peak concurrent=${finalQueueMetrics.peakConcurrent}, avg wait=${finalQueueMetrics.averageWaitTime}ms`);
 
   const sections: Partial<BusinessPlanSections> = {};
   const sectionMetrics: Record<string, { 
@@ -762,6 +1137,7 @@ async function generateBusinessPlanSectionsWithStreaming(
     retries: number;
     providerId: string;
     fallbacksUsed: number;
+    queueWaitMs: number;
   }> = {};
   const errors: string[] = [];
   let cacheHits = 0;
@@ -781,7 +1157,8 @@ async function generateBusinessPlanSectionsWithStreaming(
         fromCache: result.value.fromCache,
         retries: result.value.retryCount,
         providerId: result.value.providerId,
-        fallbacksUsed: result.value.fallbacksUsed
+        fallbacksUsed: result.value.fallbacksUsed,
+        queueWaitMs: result.value.queueWaitMs
       };
       totalRetries += result.value.retryCount;
       totalFallbacks += result.value.fallbacksUsed;
@@ -804,7 +1181,8 @@ async function generateBusinessPlanSectionsWithStreaming(
         fromCache: false,
         retries: 0,
         providerId: 'none',
-        fallbacksUsed: 0
+        fallbacksUsed: 0,
+        queueWaitMs: 0
       };
       cacheMisses++;
       sections[sectionName] = `[This section could not be generated. Please try regenerating the business plan or contact support if the issue persists.]`;
@@ -822,7 +1200,15 @@ async function generateBusinessPlanSectionsWithStreaming(
     totalRetries,
     totalFallbacks,
     providerUsage,
-    sectionMetrics
+    sectionMetrics,
+    queueMetrics: {
+      peakQueueDepth: finalQueueMetrics.peakQueueDepth,
+      peakConcurrent: finalQueueMetrics.peakConcurrent,
+      averageWaitTime: finalQueueMetrics.averageWaitTime,
+      averageProcessTime: finalQueueMetrics.averageProcessTime,
+      totalQueued: finalQueueMetrics.totalQueued,
+      totalProcessed: finalQueueMetrics.totalProcessed
+    }
   };
 
   return { sections: sections as BusinessPlanSections, metrics };
@@ -837,17 +1223,20 @@ async function generateBusinessPlanSectionsParallel(
   const prompts = buildSectionPrompts(businessIdea);
   const sectionNames = Object.keys(prompts) as (keyof BusinessPlanSections)[];
   
-  console.log(`Starting parallel generation of ${sectionNames.length} sections...`);
+  console.log(`Starting queued parallel generation of ${sectionNames.length} sections...`);
+  console.log(`Queue config: max concurrent=${DEFAULT_QUEUE_CONFIG.maxConcurrentRequests}, max per provider=${DEFAULT_QUEUE_CONFIG.maxPerProvider}`);
   const parallelStartTime = Date.now();
 
   const results = await Promise.allSettled(
     sectionNames.map(section => 
-      generateSection(supabase, apiKey, section, prompts[section], useCache)
+      generateSectionQueued(supabase, apiKey, section, prompts[section], useCache)
     )
   );
 
   const parallelEndTime = Date.now();
+  const finalQueueMetrics = requestQueue.getMetrics();
   console.log(`All parallel requests completed in ${parallelEndTime - parallelStartTime}ms`);
+  console.log(`Queue metrics: peak depth=${finalQueueMetrics.peakQueueDepth}, peak concurrent=${finalQueueMetrics.peakConcurrent}, avg wait=${finalQueueMetrics.averageWaitTime}ms`);
 
   const sections: Partial<BusinessPlanSections> = {};
   const sectionMetrics: Record<string, { 
@@ -857,6 +1246,7 @@ async function generateBusinessPlanSectionsParallel(
     retries: number;
     providerId: string;
     fallbacksUsed: number;
+    queueWaitMs: number;
   }> = {};
   const errors: string[] = [];
   let cacheHits = 0;
@@ -876,7 +1266,8 @@ async function generateBusinessPlanSectionsParallel(
         fromCache: result.value.fromCache,
         retries: result.value.retryCount,
         providerId: result.value.providerId,
-        fallbacksUsed: result.value.fallbacksUsed
+        fallbacksUsed: result.value.fallbacksUsed,
+        queueWaitMs: result.value.queueWaitMs
       };
       totalRetries += result.value.retryCount;
       totalFallbacks += result.value.fallbacksUsed;
@@ -899,7 +1290,8 @@ async function generateBusinessPlanSectionsParallel(
         fromCache: false,
         retries: 0,
         providerId: 'none',
-        fallbacksUsed: 0
+        fallbacksUsed: 0,
+        queueWaitMs: 0
       };
       cacheMisses++;
       sections[sectionName] = `[This section could not be generated. Please try regenerating the business plan or contact support if the issue persists.]`;
@@ -917,7 +1309,15 @@ async function generateBusinessPlanSectionsParallel(
     totalRetries,
     totalFallbacks,
     providerUsage,
-    sectionMetrics
+    sectionMetrics,
+    queueMetrics: {
+      peakQueueDepth: finalQueueMetrics.peakQueueDepth,
+      peakConcurrent: finalQueueMetrics.peakConcurrent,
+      averageWaitTime: finalQueueMetrics.averageWaitTime,
+      averageProcessTime: finalQueueMetrics.averageProcessTime,
+      totalQueued: finalQueueMetrics.totalQueued,
+      totalProcessed: finalQueueMetrics.totalProcessed
+    }
   };
 
   return { sections: sections as BusinessPlanSections, metrics };
@@ -966,6 +1366,8 @@ serve(async (req) => {
     console.log('Generating business plan for:', businessIdea.companyName);
     console.log('Streaming mode:', stream);
     console.log('Cache enabled:', !skipCache);
+    console.log('Request queue enabled: true');
+    console.log('Queue config: max concurrent=6, max per provider=3, priority levels=3');
     console.log('Intelligent fallback chain enabled: true');
     console.log('Circuit breaker enabled: true');
 
@@ -1013,7 +1415,8 @@ serve(async (req) => {
                   cacheMisses: metrics.cacheMisses,
                   totalRetries: metrics.totalRetries,
                   totalFallbacks: metrics.totalFallbacks,
-                  providerUsage: metrics.providerUsage
+                  providerUsage: metrics.providerUsage,
+                  queueMetrics: metrics.queueMetrics
                 }
               });
               console.log('Business plan generated successfully:', businessPlan.id);
@@ -1051,6 +1454,7 @@ serve(async (req) => {
     console.log(`Total retries: ${metrics.totalRetries}`);
     console.log(`Total fallbacks: ${metrics.totalFallbacks}`);
     console.log(`Provider usage:`, metrics.providerUsage);
+    console.log(`Queue metrics:`, metrics.queueMetrics);
 
     const { data: businessPlan, error: insertError } = await supabase
       .from('business_plans')
@@ -1089,7 +1493,8 @@ serve(async (req) => {
         totalRetries: metrics.totalRetries,
         totalFallbacks: metrics.totalFallbacks,
         providerUsage: metrics.providerUsage,
-        sectionMetrics: metrics.sectionMetrics
+        sectionMetrics: metrics.sectionMetrics,
+        queueMetrics: metrics.queueMetrics
       }
     }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' }

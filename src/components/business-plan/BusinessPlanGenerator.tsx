@@ -47,7 +47,7 @@ const businessIdeaSchema = z.object({
 
 const BusinessPlanGenerator = ({ companyId, onPlanGenerated, editingPlan }: BusinessPlanGeneratorProps) => {
   const { toast } = useToast();
-  const { sections, isGenerating, generatePlan, resetProgress } = useStreamingGeneration();
+  const { sections, isGenerating, queueStatus, generatePlan, resetProgress } = useStreamingGeneration();
 
   const form = useForm<z.infer<typeof businessIdeaSchema>>({
     resolver: zodResolver(businessIdeaSchema),
@@ -159,7 +159,7 @@ const BusinessPlanGenerator = ({ companyId, onPlanGenerated, editingPlan }: Busi
 
       <CardContent>
         {/* Progress indicator */}
-        <GenerationProgress sections={sections} isGenerating={isGenerating} />
+        <GenerationProgress sections={sections} isGenerating={isGenerating} queueStatus={queueStatus || undefined} />
         
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6 mt-6">

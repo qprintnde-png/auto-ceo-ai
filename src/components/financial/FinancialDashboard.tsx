@@ -6,6 +6,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Plus, TrendingUp, BarChart3, Calculator, MoreHorizontal, Edit, Trash } from 'lucide-react';
+import { FinancialDashboardSkeleton } from '@/components/skeletons';
 import { FinancialForm } from './FinancialForm';
 import { FinancialCharts } from './FinancialCharts';
 import { FinancialProjections } from './FinancialProjections';
@@ -166,14 +167,7 @@ export const FinancialDashboard = () => {
   const latestData = actualData[actualData.length - 1];
 
   if (isLoading) {
-    return (
-      <div className="min-h-screen bg-subtle-gradient flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
-          <p className="text-muted-foreground">Loading financial data...</p>
-        </div>
-      </div>
-    );
+    return <FinancialDashboardSkeleton />;
   }
 
   if (companies.length === 0) {

@@ -5,6 +5,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Plus, CheckCircle2, Clock, AlertTriangle, Calendar, Sparkles, Loader2 } from 'lucide-react';
+import { TaskDashboardSkeleton } from '@/components/skeletons';
 import { TaskForm } from './TaskForm';
 import { TaskCard } from './TaskCard';
 import { TaskFilters } from './TaskFilters';
@@ -244,14 +245,7 @@ export const TaskDashboard = () => {
   };
 
   if (isLoading) {
-    return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
-          <p className="text-muted-foreground">Loading tasks...</p>
-        </div>
-      </div>
-    );
+    return <TaskDashboardSkeleton />;
   }
 
   if (companies.length === 0) {

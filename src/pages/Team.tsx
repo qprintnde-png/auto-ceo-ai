@@ -20,6 +20,7 @@ import {
   DollarSign,
   Calendar
 } from "lucide-react";
+import { TeamPageSkeleton } from '@/components/skeletons';
 
 interface Company {
   id: string;
@@ -117,14 +118,7 @@ export default function Team() {
   };
 
   if (loading) {
-    return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="text-center space-y-2">
-          <Users className="h-8 w-8 animate-pulse mx-auto" />
-          <p className="text-muted-foreground">Loading your team...</p>
-        </div>
-      </div>
-    );
+    return <TeamPageSkeleton />;
   }
 
   if (companies.length === 0) {

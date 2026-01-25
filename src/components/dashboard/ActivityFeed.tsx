@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { ActivityFeedSkeleton } from '@/components/skeletons';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { supabase } from '@/integrations/supabase/client';
@@ -219,23 +220,7 @@ export const ActivityFeed = () => {
   };
 
   if (loading) {
-    return (
-      <Card className="shadow-card border">
-        <CardHeader>
-          <CardTitle className="text-lg font-semibold">Recent Activity</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-4">
-            {[...Array(5)].map((_, i) => (
-              <div key={i} className="animate-pulse">
-                <div className="h-4 bg-muted/20 rounded w-3/4 mb-2"></div>
-                <div className="h-3 bg-muted/20 rounded w-1/2"></div>
-              </div>
-            ))}
-          </div>
-        </CardContent>
-      </Card>
-    );
+    return <ActivityFeedSkeleton />;
   }
 
   return (

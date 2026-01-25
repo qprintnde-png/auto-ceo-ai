@@ -5,7 +5,8 @@ import { InvestorMatches } from "@/components/investors/InvestorMatches";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Loader2, Building2, AlertCircle } from "lucide-react";
+import { Building2, AlertCircle } from "lucide-react";
+import { InvestorPageSkeleton } from '@/components/skeletons';
 
 interface Company {
   id: string;
@@ -49,14 +50,7 @@ export default function Investors() {
   };
 
   if (loading) {
-    return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="text-center space-y-2">
-          <Loader2 className="h-8 w-8 animate-spin mx-auto" />
-          <p className="text-muted-foreground">Loading your companies...</p>
-        </div>
-      </div>
-    );
+    return <InvestorPageSkeleton />;
   }
 
   if (companies.length === 0) {

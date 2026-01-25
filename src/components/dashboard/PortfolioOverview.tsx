@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { PortfolioOverviewSkeleton } from '@/components/skeletons';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
@@ -148,15 +149,7 @@ export const PortfolioOverview = () => {
   };
 
   if (loading) {
-    return (
-      <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
-        {[...Array(3)].map((_, i) => (
-          <Card key={i} className="animate-pulse">
-            <CardContent className="h-64 bg-muted/20 rounded-lg" />
-          </Card>
-        ))}
-      </div>
-    );
+    return <PortfolioOverviewSkeleton />;
   }
 
   if (companies.length === 0) {

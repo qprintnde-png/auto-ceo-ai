@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { MetricsGridSkeleton } from '@/components/skeletons';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { supabase } from '@/integrations/supabase/client';
@@ -127,15 +128,7 @@ export const DashboardMetrics = () => {
     Math.round((metrics.completedTasks / metrics.totalTasks) * 100) : 0;
 
   if (loading) {
-    return (
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        {[...Array(8)].map((_, i) => (
-          <Card key={i} className="animate-pulse">
-            <CardContent className="h-32 bg-muted/20 rounded-lg" />
-          </Card>
-        ))}
-      </div>
-    );
+    return <MetricsGridSkeleton />;
   }
 
   return (

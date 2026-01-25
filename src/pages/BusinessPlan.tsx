@@ -8,6 +8,7 @@ import { Badge } from '@/components/ui/badge';
 import BusinessPlanGenerator from '@/components/business-plan/BusinessPlanGenerator';
 import BusinessPlanViewer from '@/components/business-plan/BusinessPlanViewer';
 import { ArrowLeft, Plus, FileText, Calendar, DollarSign, TrendingUp, Sparkles } from 'lucide-react';
+import { BusinessPlanListSkeleton } from '@/components/skeletons';
 
 interface Company {
   id: string;
@@ -165,14 +166,7 @@ const BusinessPlan = () => {
   };
 
   if (loading) {
-    return (
-      <div className="flex items-center justify-center min-h-[600px]">
-        <div className="text-center space-y-4">
-          <div className="animate-spin rounded-full h-12 w-12 border-4 border-primary border-t-transparent mx-auto"></div>
-          <p className="text-muted-foreground">Loading your business plans...</p>
-        </div>
-      </div>
-    );
+    return <BusinessPlanListSkeleton />;
   }
 
   if (companies.length === 0) {

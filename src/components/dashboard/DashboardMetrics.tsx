@@ -62,30 +62,33 @@ export const DashboardMetrics = () => {
         .select('id, current_funding')
         .eq('owner_id', user?.id);
 
-      // Fetch financial data
+      const companyIds = companies?.map(c => c.id) || [];
+
+      // Fetch all financial data ordered by period
       const { data: financialData } = await supabase
         .from('financial_data')
-        .select('revenue, expenses, burn_rate, runway_months')
-        .in('company_id', companies?.map(c => c.id) || [])
-        .eq('is_projection', false);
+        .select('revenue, expenses, burn_rate, runway_months, period_start')
+        .in('company_id', companyIds)
+        .eq('is_projection', false)
+        .order('period_start', { ascending: false });
 
       // Fetch tasks
       const { data: tasks } = await supabase
         .from('tasks')
         .select('id, status')
-        .in('company_id', companies?.map(c => c.id) || []);
+        .in('company_id', companyIds);
 
       // Fetch team members
       const { data: teamMembers } = await supabase
         .from('team_members')
         .select('id')
-        .in('company_id', companies?.map(c => c.id) || []);
+        .in('company_id', companyIds);
 
       // Fetch investor matches
       const { data: investorMatches } = await supabase
         .from('investor_matches')
         .select('id, status')
-        .in('company_id', companies?.map(c => c.id) || [])
+        .in('company_id', companyIds)
         .neq('status', 'rejected');
 
       // Calculate metrics
@@ -96,6 +99,18 @@ export const DashboardMetrics = () => {
       const portfolioValue = companies?.reduce((sum, c) => sum + (c.current_funding || 0), 0) || 0;
       const completedTasks = tasks?.filter(t => t.status === 'completed').length || 0;
 
+      // Calculate real revenue growth (compare most recent two periods)
+      let revenueGrowth = 0;
+      if (financialData && financialData.length >= 2) {
+        const currentRevenue = financialData[0]?.revenue || 0;
+        const previousRevenue = financialData[1]?.revenue || 0;
+        if (previousRevenue > 0) {
+          revenueGrowth = ((currentRevenue - previousRevenue) / previousRevenue) * 100;
+        } else if (currentRevenue > 0) {
+          revenueGrowth = 100;
+        }
+      }
+
       setMetrics({
         totalCompanies: companies?.length || 0,
         totalRevenue,
@@ -103,7 +118,7 @@ export const DashboardMetrics = () => {
         completedTasks,
         totalTeamMembers: teamMembers?.length || 0,
         activeInvestorMatches: investorMatches?.length || 0,
-        revenueGrowth: 12.5, // Mock growth rate
+        revenueGrowth,
         portfolioValue,
         burnRate: totalBurnRate,
         runway: avgRunway,

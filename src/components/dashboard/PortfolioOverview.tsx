@@ -71,14 +71,24 @@ export const PortfolioOverview = () => {
       // Fetch metrics for each company
       const companiesWithMetrics = await Promise.all(
         companiesData.map(async (company) => {
-          // Get latest financial data
-          const { data: financialData } = await supabase
+          // Get latest financial data (current month)
+          const { data: currentFinancialData } = await supabase
             .from('financial_data')
             .select('revenue')
             .eq('company_id', company.id)
             .eq('is_projection', false)
             .order('period_start', { ascending: false })
             .limit(1)
+            .maybeSingle();
+
+          // Get previous month's financial data for growth calculation
+          const { data: previousFinancialData } = await supabase
+            .from('financial_data')
+            .select('revenue')
+            .eq('company_id', company.id)
+            .eq('is_projection', false)
+            .order('period_start', { ascending: false })
+            .range(1, 1)
             .maybeSingle();
 
           // Get tasks
@@ -102,14 +112,25 @@ export const PortfolioOverview = () => {
           const completedTasks = tasks?.filter(t => t.status === 'completed').length || 0;
           const totalTasks = tasks?.length || 0;
 
+          // Calculate real growth rate
+          const currentRevenue = currentFinancialData?.revenue || 0;
+          const previousRevenue = previousFinancialData?.revenue || 0;
+          let growthRate = 0;
+          
+          if (previousRevenue > 0) {
+            growthRate = ((currentRevenue - previousRevenue) / previousRevenue) * 100;
+          } else if (currentRevenue > 0) {
+            growthRate = 100; // 100% growth if starting from zero
+          }
+
           return {
             company,
-            revenue: financialData?.revenue || 0,
+            revenue: currentRevenue,
             tasks_completed: completedTasks,
             total_tasks: totalTasks,
             team_size: team?.length || 0,
             investor_matches: investors?.length || 0,
-            growth_rate: Math.random() * 30 + 5, // Mock growth rate
+            growth_rate: growthRate,
           };
         })
       );
@@ -220,8 +241,17 @@ export const PortfolioOverview = () => {
                     </div>
                     <p className="text-lg font-bold">{formatCurrency(revenue)}</p>
                     <div className="flex items-center text-xs mt-1">
-                      <TrendingUp className="h-3 w-3 text-green-500 mr-1" />
-                      <span className="text-green-500">+{growth_rate.toFixed(1)}%</span>
+                      {growth_rate >= 0 ? (
+                        <>
+                          <TrendingUp className="h-3 w-3 text-green-500 mr-1" />
+                          <span className="text-green-500">+{growth_rate.toFixed(1)}%</span>
+                        </>
+                      ) : (
+                        <>
+                          <TrendingDown className="h-3 w-3 text-red-500 mr-1" />
+                          <span className="text-red-500">{growth_rate.toFixed(1)}%</span>
+                        </>
+                      )}
                     </div>
                   </div>
 

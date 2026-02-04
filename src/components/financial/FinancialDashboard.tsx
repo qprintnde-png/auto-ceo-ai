@@ -5,6 +5,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+import { EmptyState } from '@/components/ui/empty-state';
 import { Plus, TrendingUp, BarChart3, Calculator, MoreHorizontal, Edit, Trash } from 'lucide-react';
 import { FinancialDashboardSkeleton } from '@/components/skeletons';
 import { FinancialForm } from './FinancialForm';
@@ -321,16 +322,16 @@ export const FinancialDashboard = () => {
               </CardHeader>
               <CardContent>
                 {financialData.length === 0 ? (
-                  <div className="text-center py-12">
-                    <BarChart3 className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-                    <h3 className="text-lg font-semibold mb-2">No financial data yet</h3>
-                    <p className="text-muted-foreground mb-4">
-                      Start by adding your first financial period data
-                    </p>
-                    <Button onClick={() => setIsDialogOpen(true)} className="bg-primary-gradient">
-                      <Plus className="h-4 w-4 mr-2" />
-                      Add Financial Data
-                    </Button>
+                  <div className="py-12">
+                    <EmptyState
+                      icon={BarChart3}
+                      title="No Financial Data Yet"
+                      description="Start tracking your company's finances by adding your first financial period data."
+                      action={{
+                        label: 'Add Financial Data',
+                        onClick: () => setIsDialogOpen(true),
+                      }}
+                    />
                   </div>
                 ) : (
                   <div className="overflow-x-auto">

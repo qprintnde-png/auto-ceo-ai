@@ -6,6 +6,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
+import { pdf } from '@react-pdf/renderer';
+import { BusinessPlanPDF } from './BusinessPlanPDF';
 import { 
   FileText, 
   Download, 
@@ -77,12 +79,35 @@ const BusinessPlanViewer = ({ planId, onEdit, onBack }: BusinessPlanViewerProps)
     }
   };
 
-  const downloadPDF = () => {
-    // TODO: Implement PDF generation
-    toast({
-      title: "Coming Soon",
-      description: "PDF export functionality will be available soon",
-    });
+  const downloadPDF = async () => {
+    if (!businessPlan) return;
+
+    try {
+      const doc = <BusinessPlanPDF plan={businessPlan} />;
+      const blob = await pdf(doc).toBlob();
+      
+      // Create download link
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `${businessPlan.title.replace(/\s+/g, '-').toLowerCase()}-v${businessPlan.version}.pdf`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+
+      toast({
+        title: "Success",
+        description: "Business plan downloaded successfully",
+      });
+    } catch (error) {
+      console.error('Error generating PDF:', error);
+      toast({
+        title: "Error",
+        description: "Failed to generate PDF",
+        variant: "destructive"
+      });
+    }
   };
 
   const sharePlan = () => {

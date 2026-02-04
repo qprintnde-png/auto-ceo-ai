@@ -3,18 +3,17 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { AddTeamMemberDialog } from "@/components/team/AddTeamMemberDialog";
 import { CandidateFinder } from "@/components/team/CandidateFinder";
+import { EmptyState } from "@/components/ui/empty-state";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { Alert, AlertDescription } from "@/components/ui/alert";
 import { 
   Users, 
   Plus, 
   Search, 
   Building2, 
-  AlertCircle, 
   Mail, 
   ExternalLink,
   DollarSign,
@@ -124,15 +123,15 @@ export default function Team() {
   if (companies.length === 0) {
     return (
       <div className="container mx-auto px-4 py-8">
-        <Alert>
-          <AlertCircle className="h-4 w-4" />
-          <AlertDescription>
-            You need to create a company profile first before managing your team. 
-            <a href="/dashboard" className="ml-1 underline hover:no-underline">
-              Go to Dashboard
-            </a>
-          </AlertDescription>
-        </Alert>
+        <EmptyState
+          icon={Users}
+          title="No Team Members Yet"
+          description="Create a company profile first to start building and managing your team."
+          action={{
+            label: 'Go to Dashboard',
+            onClick: () => window.location.href = '/dashboard',
+          }}
+        />
       </div>
     );
   }

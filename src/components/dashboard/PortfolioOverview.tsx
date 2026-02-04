@@ -4,6 +4,7 @@ import { PortfolioOverviewSkeleton } from '@/components/skeletons';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
+import { EmptyState } from '@/components/ui/empty-state';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { Link } from 'react-router-dom';
@@ -175,19 +176,15 @@ export const PortfolioOverview = () => {
 
   if (companies.length === 0) {
     return (
-      <Card className="shadow-card border">
-        <CardContent className="text-center py-16">
-          <Building2 className="h-16 w-16 text-muted-foreground mx-auto mb-4" />
-          <h3 className="text-xl font-semibold mb-2">No Companies Yet</h3>
-          <p className="text-muted-foreground mb-6">
-            Start building your portfolio by creating your first company
-          </p>
-          <Button className="bg-primary hover:bg-primary/90">
-            <Plus className="h-4 w-4 mr-2" />
-            Create Company
-          </Button>
-        </CardContent>
-      </Card>
+      <EmptyState
+        icon={Building2}
+        title="No Companies Yet"
+        description="Start building your portfolio by creating your first company profile to track funding, metrics, and progress."
+        action={{
+          label: 'Create Company',
+          onClick: () => window.location.href = '/dashboard#create-company',
+        }}
+      />
     );
   }
 

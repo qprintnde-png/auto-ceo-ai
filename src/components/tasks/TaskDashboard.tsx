@@ -4,6 +4,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+import { EmptyState } from '@/components/ui/empty-state';
 import { Plus, CheckCircle2, Clock, AlertTriangle, Calendar, Sparkles, Loader2 } from 'lucide-react';
 import { TaskDashboardSkeleton } from '@/components/skeletons';
 import { TaskForm } from './TaskForm';
@@ -477,31 +478,28 @@ export const TaskDashboard = () => {
               {hasActiveFilters ? `Filtered Tasks (${filteredTasks.length})` : `All Tasks (${totalTasks})`}
             </h2>
           </div>
-          
           {filteredTasks.length === 0 ? (
-            <Card className="shadow-card border">
-              <CardContent className="text-center py-16">
-                <Calendar className="h-16 w-16 text-muted-foreground mx-auto mb-4" />
-                <h3 className="text-xl font-semibold mb-2">
-                  {tasks.length === 0 ? 'No tasks yet' : 'No tasks match your filters'}
-                </h3>
-                <p className="text-muted-foreground mb-6">
-                  {tasks.length === 0 
-                    ? 'Create your first task to get started with project management'
-                    : 'Try adjusting your filters to see more tasks'
-                  }
-                </p>
-                {tasks.length === 0 && (
-                  <Button 
-                    onClick={() => setIsDialogOpen(true)}
-                    className="bg-primary hover:bg-primary/90"
-                  >
-                    <Plus className="h-4 w-4 mr-2" />
-                    Create First Task
-                  </Button>
-                )}
-              </CardContent>
-            </Card>
+            tasks.length === 0 ? (
+              <EmptyState
+                icon={Calendar}
+                title="No Tasks Yet"
+                description="Create your first task to get started with project management and track your progress."
+                action={{
+                  label: 'Create First Task',
+                  onClick: () => setIsDialogOpen(true),
+                }}
+              />
+            ) : (
+              <Card className="shadow-card border">
+                <CardContent className="text-center py-16">
+                  <Calendar className="h-16 w-16 text-muted-foreground mx-auto mb-4" />
+                  <h3 className="text-xl font-semibold mb-2">No tasks match your filters</h3>
+                  <p className="text-muted-foreground mb-6">
+                    Try adjusting your filters to see more tasks
+                  </p>
+                </CardContent>
+              </Card>
+            )
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               {filteredTasks.map((task) => (

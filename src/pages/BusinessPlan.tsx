@@ -5,6 +5,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { EmptyState } from '@/components/ui/empty-state';
 import BusinessPlanGenerator from '@/components/business-plan/BusinessPlanGenerator';
 import BusinessPlanViewer from '@/components/business-plan/BusinessPlanViewer';
 import { ArrowLeft, Plus, FileText, Calendar, DollarSign, TrendingUp, Sparkles } from 'lucide-react';
@@ -173,21 +174,15 @@ const BusinessPlan = () => {
     return (
       <div className="p-6">
         <div className="max-w-2xl mx-auto">
-          <Card className="shadow-elegant border text-center overflow-hidden">
-            <div className="bg-primary/5 p-8">
-              <div className="inline-flex p-4 rounded-full bg-primary/10 mb-4">
-                <FileText className="h-12 w-12 text-primary" />
-              </div>
-              <h2 className="text-2xl font-bold mb-2">No Companies Found</h2>
-              <p className="text-muted-foreground mb-6">
-                You need to create a company first before generating business plans.
-              </p>
-              <Button onClick={() => window.location.href = '/onboarding'} size="lg" className="bg-primary-gradient hover:opacity-90">
-                <Plus className="h-4 w-4 mr-2" />
-                Complete Company Setup
-              </Button>
-            </div>
-          </Card>
+          <EmptyState
+            icon={FileText}
+            title="No Companies Found"
+            description="Create a company first before generating AI-powered business plans for strategic planning."
+            action={{
+              label: 'Complete Company Setup',
+              onClick: () => window.location.href = '/onboarding',
+            }}
+          />
         </div>
       </div>
     );
@@ -228,25 +223,15 @@ const BusinessPlan = () => {
       {viewMode === 'list' && (
         <div className="space-y-6">
           {businessPlans.length === 0 ? (
-            <Card className="shadow-soft border text-center overflow-hidden">
-              <div className="bg-primary/5 p-12">
-                <div className="inline-flex p-4 rounded-full bg-primary/10 mb-4">
-                  <FileText className="h-16 w-16 text-primary" />
-                </div>
-                <h3 className="text-2xl font-semibold mb-2">No Business Plans Yet</h3>
-                <p className="text-muted-foreground max-w-md mx-auto mb-6">
-                  Create your first AI-powered business plan to get started with investor outreach and strategic planning.
-                </p>
-                <Button 
-                  onClick={() => setViewMode('generator')}
-                  size="lg"
-                  className="bg-primary-gradient hover:opacity-90 shadow-elegant"
-                >
-                  <Sparkles className="h-4 w-4 mr-2" />
-                  Generate Your First Business Plan
-                </Button>
-              </div>
-            </Card>
+            <EmptyState
+              icon={FileText}
+              title="No Business Plans Yet"
+              description="Generate your first AI-powered business plan to get started with investor outreach and strategic planning."
+              action={{
+                label: 'Generate Your First Business Plan',
+                onClick: () => setViewMode('generator'),
+              }}
+            />
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {businessPlans.map((plan) => (

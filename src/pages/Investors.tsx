@@ -2,10 +2,10 @@ import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { InvestorMatches } from "@/components/investors/InvestorMatches";
+import { EmptyState } from "@/components/ui/empty-state";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Building2, AlertCircle } from "lucide-react";
+import { Building2 } from "lucide-react";
 import { InvestorPageSkeleton } from '@/components/skeletons';
 
 interface Company {
@@ -56,15 +56,15 @@ export default function Investors() {
   if (companies.length === 0) {
     return (
       <div className="container mx-auto px-4 py-8">
-        <Alert>
-          <AlertCircle className="h-4 w-4" />
-          <AlertDescription>
-            You need to create a company profile first before finding investor matches. 
-            <a href="/dashboard" className="ml-1 underline hover:no-underline">
-              Go to Dashboard
-            </a>
-          </AlertDescription>
-        </Alert>
+        <EmptyState
+          icon={Building2}
+          title="No Companies Yet"
+          description="Create a company profile first to find investor matches tailored to your business needs."
+          action={{
+            label: 'Go to Dashboard',
+            onClick: () => window.location.href = '/dashboard',
+          }}
+        />
       </div>
     );
   }

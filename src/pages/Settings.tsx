@@ -9,23 +9,23 @@ import { DataSettings } from "@/components/settings/DataSettings";
 
 const Settings = () => {
   return (
-    <div className="container mx-auto py-8 px-4 max-w-4xl">
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold mb-2">Settings</h1>
-        <p className="text-muted-foreground">
+    <div className="container mx-auto py-6 sm:py-8 px-4 max-w-4xl">
+      <div className="mb-6 sm:mb-8">
+        <h1 className="text-2xl sm:text-3xl font-bold mb-2">Settings</h1>
+        <p className="text-muted-foreground text-sm">
           Manage your account settings and preferences
         </p>
       </div>
 
       <Tabs defaultValue="profile" className="space-y-6">
-        <TabsList className="grid w-full grid-cols-7 h-auto">
-          <TabsTrigger value="profile">Profile</TabsTrigger>
-          <TabsTrigger value="account">Account</TabsTrigger>
-          <TabsTrigger value="company">Company</TabsTrigger>
-          <TabsTrigger value="preferences">Preferences</TabsTrigger>
-          <TabsTrigger value="integrations">Integrations</TabsTrigger>
-          <TabsTrigger value="security">Security</TabsTrigger>
-          <TabsTrigger value="data">Data</TabsTrigger>
+        <TabsList className="w-full overflow-x-auto flex h-auto">
+          <TabsTrigger value="profile" className="text-xs sm:text-sm">Profile</TabsTrigger>
+          <TabsTrigger value="account" className="text-xs sm:text-sm">Account</TabsTrigger>
+          <TabsTrigger value="company" className="text-xs sm:text-sm">Company</TabsTrigger>
+          <TabsTrigger value="preferences" className="text-xs sm:text-sm">Preferences</TabsTrigger>
+          <TabsTrigger value="integrations" className="text-xs sm:text-sm">Integrations</TabsTrigger>
+          <TabsTrigger value="security" className="text-xs sm:text-sm">Security</TabsTrigger>
+          <TabsTrigger value="data" className="text-xs sm:text-sm">Data</TabsTrigger>
         </TabsList>
 
         <TabsContent value="profile" className="space-y-4">

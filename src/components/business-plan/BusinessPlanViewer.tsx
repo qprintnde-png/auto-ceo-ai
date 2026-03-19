@@ -8,6 +8,7 @@ import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { pdf } from '@react-pdf/renderer';
 import { BusinessPlanPDF } from './BusinessPlanPDF';
+import { ShareDialog } from '@/components/sharing/ShareDialog';
 import { 
   FileText, 
   Download, 

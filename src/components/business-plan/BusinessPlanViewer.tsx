@@ -113,11 +113,7 @@ const BusinessPlanViewer = ({ planId, onEdit, onBack }: BusinessPlanViewerProps)
   };
 
   const sharePlan = () => {
-    // TODO: Implement sharing functionality
-    toast({
-      title: "Coming Soon",
-      description: "Sharing functionality will be available soon",
-    });
+    setShareOpen(true);
   };
 
   if (loading) {

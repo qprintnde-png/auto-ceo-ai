@@ -6,6 +6,7 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "@/hooks/useAuth";
 import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
 import { ThemeProvider } from "@/components/theme/ThemeProvider";
+import { ErrorBoundary } from "@/components/ui/error-boundary";
 import Index from "./pages/Index";
 import Auth from "./pages/Auth";
 import Dashboard from "./pages/Dashboard";
@@ -29,46 +30,46 @@ const App = () => (
           <Sonner />
           <BrowserRouter>
           <Routes>
-            <Route path="/" element={<Index />} />
-            <Route path="/auth" element={<Auth />} />
+            <Route path="/" element={<ErrorBoundary><Index /></ErrorBoundary>} />
+            <Route path="/auth" element={<ErrorBoundary><Auth /></ErrorBoundary>} />
             <Route path="/onboarding" element={
               <ProtectedRoute>
-                <Onboarding />
+                <ErrorBoundary><Onboarding /></ErrorBoundary>
               </ProtectedRoute>
             } />
             <Route path="/dashboard" element={
               <ProtectedRoute>
-                <Dashboard />
+                <ErrorBoundary><Dashboard /></ErrorBoundary>
               </ProtectedRoute>
             } />
             <Route path="/business-plan" element={
               <ProtectedRoute>
-                <BusinessPlan />
+                <ErrorBoundary><BusinessPlan /></ErrorBoundary>
               </ProtectedRoute>
             } />
             <Route path="/tasks" element={
               <ProtectedRoute>
-                <Tasks />
+                <ErrorBoundary><Tasks /></ErrorBoundary>
               </ProtectedRoute>
             } />
             <Route path="/financial" element={
               <ProtectedRoute>
-                <Financial />
+                <ErrorBoundary><Financial /></ErrorBoundary>
               </ProtectedRoute>
             } />
             <Route path="/investors" element={
               <ProtectedRoute>
-                <Investors />
+                <ErrorBoundary><Investors /></ErrorBoundary>
               </ProtectedRoute>
             } />
             <Route path="/team" element={
               <ProtectedRoute>
-                <Team />
+                <ErrorBoundary><Team /></ErrorBoundary>
               </ProtectedRoute>
             } />
             <Route path="/settings" element={
               <ProtectedRoute>
-                <Settings />
+                <ErrorBoundary><Settings /></ErrorBoundary>
               </ProtectedRoute>
             } />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}

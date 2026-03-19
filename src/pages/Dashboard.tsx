@@ -22,30 +22,30 @@ const Dashboard = () => {
     <div className="min-h-screen bg-background">
       {/* Executive Header */}
       <div className="bg-executive-gradient text-primary-foreground border-b">
-        <div className="container mx-auto px-6 py-8">
-          <div className="flex items-center justify-between">
+        <div className="container mx-auto px-4 sm:px-6 py-6 sm:py-8">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <div>
-              <h1 className="text-3xl font-bold tracking-tight mb-2">
+              <h1 className="text-2xl sm:text-3xl font-bold tracking-tight mb-2">
                 Executive Dashboard
               </h1>
-              <p className="text-primary-foreground/80 text-sm">
+              <p className="text-primary-foreground/80 text-xs sm:text-sm">
                 Welcome back, {user?.user_metadata?.first_name || user?.email} • {new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })}
               </p>
             </div>
             
-            <div className="flex items-center gap-3">
-              <Badge variant="secondary" className="capitalize bg-white/20 text-white border-0 px-4 py-1.5">
+            <div className="flex items-center gap-2 sm:gap-3">
+              <Badge variant="secondary" className="capitalize bg-white/20 text-white border-0 px-3 sm:px-4 py-1.5 text-xs">
                 {user?.user_metadata?.role || 'founder'}
               </Badge>
               <Link to="/settings">
                 <Button variant="ghost" size="sm" className="text-primary-foreground hover:bg-white/10">
-                  <Settings className="h-4 w-4 mr-2" />
-                  Settings
+                  <Settings className="h-4 w-4 sm:mr-2" />
+                  <span className="hidden sm:inline">Settings</span>
                 </Button>
               </Link>
               <Button variant="ghost" size="sm" onClick={handleSignOut} className="text-primary-foreground hover:bg-white/10">
-                <LogOut className="h-4 w-4 mr-2" />
-                Sign Out
+                <LogOut className="h-4 w-4 sm:mr-2" />
+                <span className="hidden sm:inline">Sign Out</span>
               </Button>
             </div>
           </div>

@@ -356,6 +356,15 @@ const BusinessPlanViewer = ({ planId, onEdit, onBack }: BusinessPlanViewerProps)
           </Tabs>
         </CardContent>
       </Card>
+
+      {/* Share Dialog */}
+      <ShareDialog
+        open={shareOpen}
+        onOpenChange={setShareOpen}
+        title={businessPlan.title}
+        resourceType="business-plan"
+        resourceId={businessPlan.id}
+      />
     </div>
   );
 };

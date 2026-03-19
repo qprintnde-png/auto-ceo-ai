@@ -49,6 +49,7 @@ interface BusinessPlanViewerProps {
 const BusinessPlanViewer = ({ planId, onEdit, onBack }: BusinessPlanViewerProps) => {
   const [businessPlan, setBusinessPlan] = useState<BusinessPlan | null>(null);
   const [loading, setLoading] = useState(true);
+  const [shareOpen, setShareOpen] = useState(false);
   const { toast } = useToast();
 
   useEffect(() => {

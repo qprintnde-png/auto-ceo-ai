@@ -1,163 +1,78 @@
+# Full Database Restore from `db_cluster-28-09-2025@07-16-50.backup.gz`
 
+## Important: this cannot be executed by Lovable
 
-# MVP Completion Plan for Auto-CEO
+The upload is a Supabase **cluster-level `pg_dumpall`** containing `CREATE ROLE`, `ALTER SYSTEM`, auth schema, storage schema, and full data. Restoring it requires:
 
-## Overview
+- **Superuser / `postgres` role access** — Lovable's migration tool runs as a restricted role and will reject `CREATE ROLE`, `ALTER SYSTEM`, grants on `auth.*`, etc.
+- **An empty target database** — restoring over the current DB will collide on every existing object (roles already exist, `public.profiles` already exists, RLS policies conflict).
+- **Matching JWT secret** — auth users carry hashed passwords tied to the old project's JWT secret. Without copying that secret too, nobody can log in after restore.
 
-Auto-CEO has a strong foundation with advanced AI features already implemented. To deliver a polished MVP, we need to address a few remaining gaps focused on **data reality** (replacing mock data with real data), **export functionality** (PDF generation), and **UX polish** (empty states and onboarding improvements).
-
-## Priority 1: Dashboard Analytics with Real Data
-
-**Problem**: Dashboard charts currently display hardcoded mock data instead of actual financial and activity data from the database.
-
-**Solution**: 
-- Update `DashboardCharts.tsx` to fetch actual `financial_data` from Supabase
-- Update `AIInsights.tsx` to generate dynamic insights based on real metrics (burn rate, runway, task completion rates)
-- Remove `Math.random()` growth rate calculation from `PortfolioOverview.tsx` and calculate real period-over-period changes
-
-**Files to modify**:
-- `src/components/dashboard/DashboardCharts.tsx`
-- `src/components/dashboard/AIInsights.tsx`
-- `src/components/dashboard/PortfolioOverview.tsx`
-- `src/components/dashboard/DashboardMetrics.tsx`
+Because of this, the only safe path is for **you** to run the restore against a **fresh Supabase project**, then point Lovable at it.
 
 ---
 
-## Priority 2: Business Plan PDF Export
+## Recommended path: restore into a new Supabase project, then re-link
 
-**Problem**: The "Download PDF" button in BusinessPlanViewer shows a "Coming Soon" toast.
+### Step 1 — Create a new empty Supabase project
+- supabase.com → New Project. Pick the same region as your old one. Save the DB password.
 
-**Solution**:
-- Implement client-side PDF generation using `@react-pdf/renderer` or `html2pdf.js`
-- Generate a professionally formatted PDF with all 6 sections (Executive Summary, Market Analysis, etc.)
-- Add company branding/logo to the PDF header
+### Step 2 — Copy the JWT secret from the OLD project (so user passwords keep working)
+- Old project → Settings → API → **JWT Secret** → copy.
+- New project → Settings → API → **JWT Secret** → paste & save. Restart the project.
+- Skip this step only if you're OK with all users being forced to reset their passwords.
 
-**Files to modify/create**:
-- `src/components/business-plan/BusinessPlanViewer.tsx`
-- Create `src/components/business-plan/BusinessPlanPDF.tsx` (PDF template component)
-- Add dependency: `@react-pdf/renderer` or `html2pdf.js`
+### Step 3 — Restore the dump
+On your local machine (needs `psql` ≥ 15):
 
----
+```bash
+gunzip -k db_cluster-28-09-2025@07-16-50.backup.gz
 
-## Priority 3: Empty State Illustrations & CTAs
+# Connection string from: New project → Settings → Database → Connection string → URI (session pooler / direct)
+export NEW_DB="postgresql://postgres:[PASSWORD]@db.[NEW-REF].supabase.co:5432/postgres"
 
-**Problem**: When users have no data (first-time users), the experience lacks guidance.
-
-**Solution**:
-- Create reusable `EmptyState` component with illustration, title, description, and CTA button
-- Implement across all main modules: Dashboard, Tasks, Financial, Investors, Team, Business Plan
-- Guide users to take their first action in each section
-
-**Files to create/modify**:
-- Create `src/components/ui/empty-state.tsx`
-- Update `src/components/dashboard/PortfolioOverview.tsx`
-- Update `src/components/tasks/TaskDashboard.tsx`
-- Update `src/components/financial/FinancialDashboard.tsx`
-- Update `src/pages/BusinessPlan.tsx`
-- Update `src/pages/Investors.tsx`
-
----
-
-## Priority 4: Onboarding Redirect Logic
-
-**Problem**: New users complete onboarding but aren't automatically routed there if `onboarding_completed: false`.
-
-**Solution**:
-- Check `profiles.onboarding_completed` flag after authentication
-- Redirect to `/onboarding` if false, to `/dashboard` if true
-- Update `ProtectedRoute.tsx` to handle this check
-
-**Files to modify**:
-- `src/components/auth/ProtectedRoute.tsx`
-- `src/hooks/useAuth.tsx` (add profile query)
-
----
-
-## Priority 5: Error Boundaries & Fallback UI
-
-**Problem**: No graceful error handling if a component crashes.
-
-**Solution**:
-- Create `ErrorBoundary` component for catching React errors
-- Add fallback UI with "Something went wrong" message and retry button
-- Wrap main route components with error boundaries
-
-**Files to create/modify**:
-- Create `src/components/ui/error-boundary.tsx`
-- Update `src/App.tsx` to wrap routes
-
----
-
-## Technical Details
-
-### Dashboard Analytics Implementation
-
-```text
-Data Flow:
-financial_data table --> React Query hook --> DashboardCharts component
-
-Steps:
-1. Create useFinancialMetrics() hook that aggregates data by period
-2. Transform data into chart-compatible format
-3. Replace static revenueData array with dynamic query result
+psql "$NEW_DB" -v ON_ERROR_STOP=1 -f db_cluster-28-09-2025@07-16-50.backup
 ```
 
-### PDF Export Architecture
+Expect a few benign warnings (`role "supabase_admin" already exists`, extension already installed). Hard errors mean stop and review.
 
-```text
-BusinessPlanViewer
-    |
-    v
-[Download PDF Button]
-    |
-    v
-generatePDF() function
-    |
-    v
-Create styled document with:
-- Header (company name, date)
-- Executive Summary
-- Market Analysis  
-- Competitive Analysis
-- Marketing Strategy
-- Operations Plan
-- Financial Projections
-    |
-    v
-Trigger browser download
-```
+### Step 4 — Re-link Lovable to the new project
+- In Lovable: disconnect the current Cloud/Supabase connection.
+- Reconnect, selecting the **new** project ref.
+- Lovable regenerates `src/integrations/supabase/client.ts` and `types.ts` against the restored schema.
 
-### Empty State Component API
-
-```text
-<EmptyState
-  icon={FileText}
-  title="No business plans yet"
-  description="Create your first AI-powered business plan to get started"
-  action={{ label: "Generate Plan", onClick: handleCreate }}
-/>
-```
+### Step 5 — Verify
+- Sign in with an old user (works only if Step 2 was done).
+- Check `profiles`, `companies`, `business_plans`, `tasks`, `cached_sections` row counts match the old project.
+- Re-deploy edge functions (they live in this repo, not in the DB) and re-add any secrets (`LOVABLE_API_KEY`, `ANTHROPIC_API_KEY`, `GROK_API_KEY`, `PERPLEXITY_API_KEY`).
 
 ---
 
-## Implementation Order
+## What Lovable WILL do for you (after you confirm)
 
-| Phase | Feature | Estimated Effort | User Impact |
-|-------|---------|-----------------|-------------|
-| 1 | Dashboard Real Analytics | Medium | High |
-| 2 | Business Plan PDF Export | Medium | High |
-| 3 | Empty State Components | Low | Medium |
-| 4 | Onboarding Redirect Logic | Low | High |
-| 5 | Error Boundaries | Low | Medium |
+1. **Analyze the dump locally** and produce a report: schemas, tables, row counts, extensions, and a diff vs. the current project's schema — so you know what you're about to overwrite.
+2. **Generate a tailored restore script** with the exact `psql` commands and the post-restore checklist above, pre-filled.
+3. **After you re-link** the new project, regenerate the Supabase TypeScript types and smoke-test the app against the restored data.
+
+## What Lovable will NOT do
+
+- Run `pg_restore` / cluster-level SQL against the current project (no superuser, would break the live app).
+- Wipe the current database from inside chat.
+- Copy the JWT secret for you (only visible to project owners in Supabase dashboard).
 
 ---
 
-## Post-MVP Considerations
+## Alternative if you don't want a new project
 
-After these 5 priorities are complete, the MVP will be fully functional. Future enhancements to consider:
+Tell me instead and I'll switch to **"Extract schema + data and merge into current DB"**:
+- I parse the dump, list every table and row, and you pick which tables/rows to import.
+- I write proper migrations for missing tables and use the insert tool for data.
+- Slower, but no new Supabase project required and no risk to your current auth users.
 
-- **Sharing & Collaboration**: Share business plans with team members or investors
-- **Notification System**: Email/push notifications for important events
-- **Analytics Dashboard**: Track AI usage, costs, and performance metrics
-- **Mobile Optimization**: Improve mobile experience for on-the-go founders
+---
 
+## Confirm to proceed
+
+Reply with either:
+- **"Generate the analysis + restore script"** — I'll produce the report and the ready-to-run `psql` commands.
+- **"Switch to merge mode"** — I'll plan a non-destructive table-by-table import into the current DB instead.
